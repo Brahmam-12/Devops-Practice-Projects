@@ -1,0 +1,74 @@
+{
+	"tldrawFileFormatVersion": 1,
+	"schema": {
+		"schemaVersion": 2,
+		"sequences": {
+			"com.tldraw.store": 5,
+			"com.tldraw.asset": 1,
+			"com.tldraw.camera": 1,
+			"com.tldraw.document": 2,
+			"com.tldraw.instance": 26,
+			"com.tldraw.instance_page_state": 5,
+			"com.tldraw.page": 1,
+			"com.tldraw.instance_presence": 6,
+			"com.tldraw.pointer": 1,
+			"com.tldraw.shape": 4,
+			"com.tldraw.user": 1,
+			"com.tldraw.asset.image": 6,
+			"com.tldraw.asset.video": 5,
+			"com.tldraw.asset.bookmark": 2,
+			"com.tldraw.shape.group": 0,
+			"com.tldraw.shape.text": 4,
+			"com.tldraw.shape.bookmark": 2,
+			"com.tldraw.shape.draw": 4,
+			"com.tldraw.shape.geo": 11,
+			"com.tldraw.shape.note": 12,
+			"com.tldraw.shape.line": 5,
+			"com.tldraw.shape.frame": 1,
+			"com.tldraw.shape.arrow": 8,
+			"com.tldraw.shape.highlight": 3,
+			"com.tldraw.shape.embed": 4,
+			"com.tldraw.shape.image": 5,
+			"com.tldraw.shape.video": 4,
+			"com.tldraw.binding.arrow": 1
+		}
+	},
+	"records": [
+		{"x":0,"y":0,"lastActivityTimestamp":0,"meta":{},"id":"pointer:pointer","typeName":"pointer"},
+		{"x":-80,"y":-40,"z":0.8,"meta":{},"id":"camera:page:page","typeName":"camera"},
+		{"meta":{},"id":"page:page","name":"Page 1","index":"a1","typeName":"page"},
+		{"gridSize":10,"name":"","meta":{},"id":"document:document","typeName":"document"},
+		{"editingShapeId":null,"croppingShapeId":null,"selectedShapeIds":[],"hoveredShapeId":null,"erasingShapeIds":[],"hintingShapeIds":[],"focusedGroupId":null,"meta":{},"id":"instance_page_state:page:page","pageId":"page:page","typeName":"instance_page_state"},
+		{"followingUserId":null,"opacityForNextShape":1,"stylesForNextShape":{},"brush":null,"scribbles":[],"cursor":{"type":"default","rotation":0},"isFocusMode":false,"exportBackground":true,"isDebugMode":false,"isToolLocked":false,"screenBounds":{"x":0,"y":0,"w":1612,"h":918},"insets":[false,false,true,false],"zoomBrush":null,"isGridMode":false,"isPenMode":false,"chatMessage":"","isChatting":false,"highlightedUserIds":[],"isFocused":true,"devicePixelRatio":1,"isCoarsePointer":false,"isHoveringCanvas":false,"openMenus":[],"isChangingStyle":false,"isReadonly":false,"meta":{},"duplicateProps":null,"cameraState":"idle","id":"instance:instance","currentPageId":"page:page","typeName":"instance"},
+
+		{"x":430,"y":10,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:title","type":"text","props":{"color":"black","size":"xl","w":600,"font":"draw","textAlign":"middle","autoSize":true,"scale":1,"richText":{"type":"doc","attrs":{"dir":"auto"},"content":[{"type":"paragraph","attrs":{"dir":"auto"},"content":[{"type":"text","text":"AWS Hub-Spoke VPC Peering"}]}]}},"parentId":"page:page","index":"a0","typeName":"shape"},
+
+		{"x":430,"y":90,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:hub","type":"geo","props":{"w":440,"h":260,"geo":"rectangle","dash":"draw","growY":0,"url":"","scale":1,"color":"blue","labelColor":"black","fill":"semi","size":"m","font":"draw","align":"middle","verticalAlign":"start","richText":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Hub VPC   10.0.0.0/16   (Shared Services)"}]}]}},"parentId":"page:page","index":"a1","typeName":"shape"},
+
+		{"x":490,"y":160,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:hub-bastion","type":"geo","props":{"w":120,"h":55,"geo":"rectangle","dash":"draw","growY":0,"url":"","scale":1,"color":"grey","labelColor":"black","fill":"solid","size":"s","font":"draw","align":"middle","verticalAlign":"middle","richText":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Bastion\n10.0.10.x"}]}]}},"parentId":"page:page","index":"a2","typeName":"shape"},
+
+		{"x":640,"y":160,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:hub-vm","type":"geo","props":{"w":120,"h":55,"geo":"rectangle","dash":"draw","growY":0,"url":"","scale":1,"color":"grey","labelColor":"black","fill":"solid","size":"s","font":"draw","align":"middle","verticalAlign":"middle","richText":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Hub VM\n10.0.1.x"}]}]}},"parentId":"page:page","index":"a3","typeName":"shape"},
+
+		{"x":490,"y":250,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:hub-rt","type":"text","props":{"color":"black","size":"s","w":280,"font":"draw","textAlign":"start","autoSize":true,"scale":1,"richText":{"type":"doc","attrs":{"dir":"auto"},"content":[{"type":"paragraph","attrs":{"dir":"auto"},"content":[{"type":"text","text":"Route Table:\n10.1.0.0/16 → pcx-hub-spoke-a\n10.2.0.0/16 → pcx-hub-spoke-b"}]}]}},"parentId":"page:page","index":"a4","typeName":"shape"},
+
+		{"x":60,"y":450,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:spoke-a","type":"geo","props":{"w":400,"h":250,"geo":"rectangle","dash":"draw","growY":0,"url":"","scale":1,"color":"green","labelColor":"black","fill":"semi","size":"m","font":"draw","align":"middle","verticalAlign":"start","richText":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Spoke-A VPC   10.1.0.0/16   (Dev)"}]}]}},"parentId":"page:page","index":"a5","typeName":"shape"},
+
+		{"x":100,"y":520,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:spoke-a-vm","type":"geo","props":{"w":120,"h":55,"geo":"rectangle","dash":"draw","growY":0,"url":"","scale":1,"color":"grey","labelColor":"black","fill":"solid","size":"s","font":"draw","align":"middle","verticalAlign":"middle","richText":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Dev VM\n10.1.1.x"}]}]}},"parentId":"page:page","index":"a6","typeName":"shape"},
+
+		{"x":90,"y":600,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:spoke-a-rt","type":"text","props":{"color":"black","size":"s","w":250,"font":"draw","textAlign":"start","autoSize":true,"scale":1,"richText":{"type":"doc","attrs":{"dir":"auto"},"content":[{"type":"paragraph","attrs":{"dir":"auto"},"content":[{"type":"text","text":"Route Table:\n10.0.0.0/16 → pcx-hub-spoke-a"}]}]}},"parentId":"page:page","index":"a7","typeName":"shape"},
+
+		{"x":840,"y":450,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:spoke-b","type":"geo","props":{"w":400,"h":250,"geo":"rectangle","dash":"draw","growY":0,"url":"","scale":1,"color":"orange","labelColor":"black","fill":"semi","size":"m","font":"draw","align":"middle","verticalAlign":"start","richText":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Spoke-B VPC   10.2.0.0/16   (Prod)"}]}]}},"parentId":"page:page","index":"a8","typeName":"shape"},
+
+		{"x":890,"y":520,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:spoke-b-vm","type":"geo","props":{"w":120,"h":55,"geo":"rectangle","dash":"draw","growY":0,"url":"","scale":1,"color":"grey","labelColor":"black","fill":"solid","size":"s","font":"draw","align":"middle","verticalAlign":"middle","richText":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Prod VM\n10.2.1.x"}]}]}},"parentId":"page:page","index":"a9","typeName":"shape"},
+
+		{"x":840,"y":600,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:spoke-b-rt","type":"text","props":{"color":"black","size":"s","w":280,"font":"draw","textAlign":"start","autoSize":true,"scale":1,"richText":{"type":"doc","attrs":{"dir":"auto"},"content":[{"type":"paragraph","attrs":{"dir":"auto"},"content":[{"type":"text","text":"Route Table:\n10.0.0.0/16 → pcx-hub-spoke-b"}]}]}},"parentId":"page:page","index":"a10","typeName":"shape"},
+
+		{"x":500,"y":350,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:peer-a","type":"arrow","props":{"kind":"arc","elbowMidPoint":0.5,"dash":"draw","size":"m","fill":"none","color":"blue","labelColor":"black","bend":0,"start":{"x":0,"y":0},"end":{"x":-245,"y":100},"arrowheadStart":"arrow","arrowheadEnd":"arrow","richText":{"type":"doc","attrs":{"dir":"auto"},"content":[{"type":"paragraph","attrs":{"dir":"auto"},"content":[{"type":"text","text":"VPC Peering\nhub↔spoke-a"}]}]},"labelPosition":0.5,"font":"draw","scale":1},"parentId":"page:page","index":"a11","typeName":"shape"},
+
+		{"x":790,"y":350,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:peer-b","type":"arrow","props":{"kind":"arc","elbowMidPoint":0.5,"dash":"draw","size":"m","fill":"none","color":"orange","labelColor":"black","bend":0,"start":{"x":0,"y":0},"end":{"x":248,"y":100},"arrowheadStart":"arrow","arrowheadEnd":"arrow","richText":{"type":"doc","attrs":{"dir":"auto"},"content":[{"type":"paragraph","attrs":{"dir":"auto"},"content":[{"type":"text","text":"VPC Peering\nhub↔spoke-b"}]}]},"labelPosition":0.5,"font":"draw","scale":1},"parentId":"page:page","index":"a12","typeName":"shape"},
+
+		{"x":300,"y":580,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:no-peer","type":"geo","props":{"w":700,"h":60,"geo":"rectangle","dash":"draw","growY":0,"url":"","scale":1,"color":"red","labelColor":"black","fill":"semi","size":"s","font":"draw","align":"middle","verticalAlign":"middle","richText":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"❌ Spoke-A ↔ Spoke-B: NO peering — routing is non-transitive!"}]}]}},"parentId":"page:page","index":"a13","typeName":"shape"},
+
+		{"x":55,"y":750,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:note","type":"text","props":{"color":"black","size":"s","w":1100,"font":"draw","textAlign":"start","autoSize":true,"scale":1,"richText":{"type":"doc","attrs":{"dir":"auto"},"content":[{"type":"paragraph","attrs":{"dir":"auto"},"content":[{"type":"text","text":"Important: AWS VPC Peering is NON-TRANSITIVE. Spoke-A cannot reach Spoke-B through Hub. Use Transit Gateway for transitive routing."}]}]}},"parentId":"page:page","index":"a14","typeName":"shape"}
+	]
+}

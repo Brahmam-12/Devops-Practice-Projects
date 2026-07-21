@@ -1,0 +1,178 @@
+# ─── BLUE-GREEN DEPLOYMENT: user-service ──────────────────────────────────────
+#
+# HOW BLUE-GREEN WORKS:
+#   - TWO full deployments run simultaneously: blue (stable) and green (new)
+#   - The Service selector decides which version gets ALL traffic
+#   - To release: deploy green → test it → flip Service selector → blue is idle
+#   - To rollback: flip Service selector back to blue (instant — no re-deploy)
+#
+# DIFFERENCE FROM ROLLING UPDATE:
+#   Rolling update   → gradual replacement, some pods on v1 some on v2 simultaneously
+#   Blue-green       → 100% traffic on one version at a time, instant switch
+#
+# WORKFLOW:
+#   1. Blue runs v1, green runs v1 (both idle initially)
+#   2. Jenkins builds v2 → updates green image tag in git
+#   3. ArgoCD applies → green pods restart with v2, blue still serves ALL traffic
+#   4. QA team tests green directly (curl the pod IP or temp service)
+#   5. Switch traffic: change Service selector version: blue → version: green
+#   6. ArgoCD applies → 100% traffic now on green (v2) instantly
+#   7. Monitor for 30 min. If issues: flip selector back to blue (v1) in 1 git commit
+#   8. Once stable: update blue image to v2 for next cycle
+#
+# CURRENTLY ACTIVE VERSION: controlled by Service selector below (see version: blue)
+# TO SWITCH TO GREEN:       change selector version: blue → version: green in Service
+---
+# ── BLUE DEPLOYMENT (current stable) ─────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service-blue
+  namespace: microservices
+  labels:
+    app: user-service
+    version: blue
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: user-service
+      version: blue
+  template:
+    metadata:
+      labels:
+        app: user-service
+        version: blue       # Service selector uses this to route ALL traffic here
+    spec:
+      serviceAccountName: user-service-sa
+      containers:
+        - name: user-service
+          image: microservicesacr.azurecr.io/user-service:1   # stable version
+          ports:
+            - containerPort: 3000
+          env:
+            - name: PORT
+              value: "3000"
+            - name: DB_HOST
+              value: postgres
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: usersdb
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "300m"
+---
+# ── GREEN DEPLOYMENT (new version — no traffic until Service selector flips) ──
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service-green
+  namespace: microservices
+  labels:
+    app: user-service
+    version: green
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: user-service
+      version: green
+  template:
+    metadata:
+      labels:
+        app: user-service
+        version: green      # Service selector does NOT point here yet
+    spec:
+      serviceAccountName: user-service-sa
+      containers:
+        - name: user-service
+          image: microservicesacr.azurecr.io/user-service:1   # Jenkins updates THIS tag for new releases
+          ports:
+            - containerPort: 3000
+          env:
+            - name: PORT
+              value: "3000"
+            - name: DB_HOST
+              value: postgres
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: usersdb
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "300m"
+---
+# ── SERVICE (traffic switch — change version: blue to version: green to flip) ─
+# THIS IS THE ONLY LINE YOU CHANGE TO DO A BLUE-GREEN SWITCH:
+#   selector.version: blue   → 100% traffic to blue pods
+#   selector.version: green  → 100% traffic to green pods
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+  namespace: microservices
+spec:
+  type: ClusterIP
+  selector:
+    app: user-service
+    version: blue          # ← CHANGE THIS to "green" to flip traffic (one git commit)
+  ports:
+    - port: 3000
+      targetPort: 3000

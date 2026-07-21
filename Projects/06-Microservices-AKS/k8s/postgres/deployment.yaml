@@ -1,0 +1,122 @@
+# ─── DEPLOYMENT ──────────────────────────────────────────────────────────────
+# A Deployment tells Kubernetes: "keep N copies of this pod running at all times".
+# If a pod crashes, Deployment automatically creates a replacement.
+# If you update the image, Deployment does a rolling update (no downtime).
+
+apiVersion: apps/v1     # apps/v1 is the API group for Deployments, StatefulSets, DaemonSets
+kind: Deployment        # we are creating a Deployment resource
+metadata:
+  name: postgres        # name of this Deployment — used in kubectl commands e.g. kubectl get deployment postgres
+  namespace: microservices # same namespace as everything else in our project
+spec:                   # spec = the desired state — what we WANT Kubernetes to create
+  replicas: 1           # how many copies (pods) of postgres to run
+                        # postgres = 1 replica because it's a single database (can't simply run 2 without clustering)
+                        # for user-service/product-service we use 2 replicas for high availability
+
+  selector:             # selector = how Deployment FINDS its own pods
+    matchLabels:        # it looks for pods that have these labels
+      app: postgres     # only pods with label "app: postgres" belong to this Deployment
+
+  template:             # template = the blueprint for every pod this Deployment creates
+    metadata:
+      labels:
+        app: postgres   # IMPORTANT: this label must match the selector.matchLabels above
+                        # also used by the Service to find these pods
+    spec:               # spec of the POD (not the Deployment) — what containers run inside it
+      containers:
+        - name: postgres          # name of the container inside the pod — used in kubectl logs/exec
+          image: postgres:15-alpine  # Docker image to use — pulled from Docker Hub
+                                     # postgres:15 = PostgreSQL version 15
+                                     # alpine = smaller base image (less disk, faster pull)
+          ports:
+            - containerPort: 5432  # the port PostgreSQL listens on INSIDE the container
+                                   # this is informational — Kubernetes doesn't block other ports
+                                   # actual port access is controlled by the Service
+
+          envFrom:                 # envFrom = inject ALL keys from a Secret as environment variables
+            - secretRef:
+                name: postgres-secret  # read from the Secret we created in secret.yaml
+                                       # this sets POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB
+                                       # inside the container as env vars
+
+          volumeMounts:            # volumeMounts = attach storage to a path inside the container
+            - name: postgres-data  # name must match a volume defined in the volumes section below
+              mountPath: /var/lib/postgresql/data  # PostgreSQL stores all database files here
+                                                   # without this, data is lost when pod restarts
+
+            - name: init-sql               # mount the init SQL script
+              mountPath: /docker-entrypoint-initdb.d  # postgres image auto-runs *.sql files in this directory
+                                                       # on FIRST startup only (when data dir is empty)
+
+          readinessProbe:          # readinessProbe = checks if the pod is READY to receive traffic
+                                   # pod only gets traffic from Service AFTER this check passes
+                                   # without this, Service sends traffic to postgres before it's fully started
+            exec:
+              command: ["pg_isready", "-U", "postgres"]  # pg_isready = postgres built-in tool
+                                                          # returns exit 0 if postgres is accepting connections
+            initialDelaySeconds: 5  # wait 5 seconds before first check (give postgres time to start)
+            periodSeconds: 5        # check every 5 seconds
+
+          resources:               # resources = CPU and memory limits/requests
+            requests:              # requests = MINIMUM guaranteed resources (used by scheduler to place pod on a node)
+              memory: "256Mi"      # pod needs at least 256 megabytes of RAM
+              cpu: "250m"          # 250m = 0.25 CPU cores (1000m = 1 full core)
+            limits:                # limits = MAXIMUM the container can use before being throttled or killed
+              memory: "512Mi"      # if postgres uses more than 512Mi → OOMKilled (scenario 08)
+              cpu: "500m"          # if postgres uses more than 0.5 core → throttled (slows down, not killed)
+
+      volumes:                     # volumes = define the actual storage sources that containers can mount
+        - name: postgres-data      # name — must match volumeMounts.name above
+          persistentVolumeClaim:   # use a PVC (PersistentVolumeClaim) as the storage source
+            claimName: postgres-pvc  # the name of the PVC defined below in this file
+
+        - name: init-sql           # name — must match volumeMounts.name above
+          configMap:               # use a ConfigMap as the storage source
+            name: postgres-init    # the ConfigMap defined below — contains our init.sql content
+
+# ─────────────────────────────────────────────────────────────────────────────
+# "---" separates multiple Kubernetes resources in one file
+# We put PVC and ConfigMap here because they are closely related to postgres
+---
+
+# ─── PERSISTENTVOLUMECLAIM ───────────────────────────────────────────────────
+# A PVC = a request for storage from the cluster.
+# Think of it as: "I need a 5Gi disk, please create and attach it."
+# Azure automatically creates an Azure Managed Disk when AKS sees a PVC.
+# The data PERSISTS across pod restarts — this is why databases need PVCs.
+
+apiVersion: v1
+kind: PersistentVolumeClaim  # we are claiming (requesting) a persistent volume
+metadata:
+  name: postgres-pvc         # name — referenced in the Deployment volumes section above
+  namespace: microservices
+spec:
+  accessModes:
+    - ReadWriteOnce           # ReadWriteOnce = only ONE pod can mount this disk at a time
+                              # correct for databases (only 1 postgres pod)
+                              # ReadWriteMany = multiple pods can mount (used for shared file storage)
+  resources:
+    requests:
+      storage: 5Gi            # request a 5 gigabyte disk — Azure creates this automatically
+  storageClassName: managed-csi  # which type of storage to create
+                                 # managed-csi = Azure Managed Disk (default in AKS)
+                                 # on AWS EKS this would be "gp2" or "gp3"
+
+---
+
+# ─── CONFIGMAP ───────────────────────────────────────────────────────────────
+# A ConfigMap stores non-sensitive configuration data (plain text, config files).
+# Here we store the SQL script that creates our databases on first startup.
+# We use ConfigMap (not Secret) because SQL scripts are not sensitive.
+
+apiVersion: v1
+kind: ConfigMap             # we are creating a ConfigMap resource
+metadata:
+  name: postgres-init       # name — referenced in the Deployment volumes section above
+  namespace: microservices
+data:                       # data = the actual content of the ConfigMap (key: value pairs)
+  init.sql: |               # key = "init.sql" (this becomes the filename when mounted as a volume)
+                            # | means multi-line string follows
+    CREATE DATABASE usersdb;
+    CREATE DATABASE productsdb;
+                                # PostgreSQL only runs this file once — when data directory is empty

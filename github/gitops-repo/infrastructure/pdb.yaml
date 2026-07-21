@@ -1,0 +1,34 @@
+# ─── PodDisruptionBudget ──────────────────────────────────────────────────────
+# PDB prevents Kubernetes from taking down too many pods at once during:
+#   - Node drains (kubectl drain) before maintenance or upgrades
+#   - AKS node pool upgrades (rolling OS patching)
+#   - Voluntary evictions (Cluster Autoscaler scale-down)
+#
+# WITHOUT PDB: a node drain can kill ALL pods of a service at once → outage.
+# WITH PDB:    Kubernetes guarantees at least minAvailable pods remain running.
+#
+# minAvailable: 1 means: "always keep at least 1 pod up, even during disruption"
+# With 2 replicas → 1 can be evicted at a time (safe rolling replacement)
+# With HPA scaling to 5 → still only 1 evicted at a time (dynamic, not hardcoded)
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: user-service-pdb
+  namespace: microservices
+spec:
+  minAvailable: 1              # at least 1 pod must be running at all times
+  selector:
+    matchLabels:
+      app: user-service        # targets user-service pods
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: product-service-pdb
+  namespace: microservices
+spec:
+  minAvailable: 1              # at least 1 pod must be running at all times
+  selector:
+    matchLabels:
+      app: product-service     # targets product-service pods

@@ -1,0 +1,106 @@
+# ─── DEPLOYMENT (user-service) ───────────────────────────────────────────────
+# Deployment manages our user-service pods.
+# It ensures 2 replicas are always running.
+# If a pod crashes → Deployment starts a replacement automatically.
+# When we update the image → rolling update (new pods start, old pods stop, zero downtime).
+
+apiVersion: apps/v1    # apps/v1 = the API group that contains Deployment, StatefulSet, DaemonSet
+kind: Deployment       # we are creating a Deployment
+metadata:
+  name: user-service   # name of this Deployment — used in: kubectl get deployment user-service
+  namespace: microservices  # put it in our microservices namespace, not the default one
+
+spec:                  # spec = what we WANT Kubernetes to create and maintain
+  replicas: 2          # run 2 copies of this pod at all times
+                       # if one pod crashes, Kubernetes creates a replacement — always 2 running
+                       # 2 replicas also means if a node goes down, the other pod (on a different node) still serves traffic
+
+  selector:            # selector = how Deployment identifies which pods belong to it
+    matchLabels:       # find pods where the labels match:
+      app: user-service  # only pods with "app: user-service" label are managed by this Deployment
+
+  template:            # template = the blueprint used to create each pod
+    metadata:
+      labels:
+        app: user-service  # MUST match selector.matchLabels above
+                           # also used by the Service to find and route to these pods
+
+    spec:              # spec of the POD — what containers run inside
+      containers:
+        - name: user-service  # name of the container — used in: kubectl logs <pod> -c user-service
+          image: <YOUR_ACR_NAME>.azurecr.io/user-service:v1
+                        # the Docker image to pull and run
+                        # format: <registry>/<image-name>:<tag>
+                        # replace <YOUR_ACR_NAME> with your actual ACR name before applying
+                        # e.g. microservicesacr12345.azurecr.io/user-service:v1
+
+          ports:
+            - containerPort: 3000  # the port our Node.js app listens on INSIDE the container
+                                   # purely informational — does not open/block the port
+                                   # actual routing is done by the Service
+
+          env:                     # env = set environment variables inside the container
+                                   # our Node.js app reads these with process.env.NAME
+
+            - name: PORT           # tells the app which port to listen on
+              value: "3000"        # must be a string in YAML — not a number
+                                   # matches containerPort above and process.env.PORT in index.js
+
+            - name: DB_HOST        # the hostname of our database
+              value: postgres      # "postgres" = the name of the postgres Service
+                                   # Kubernetes DNS resolves this to the postgres ClusterIP
+                                   # this is why the Service name matters so much
+
+            - name: DB_PORT
+              value: "5432"        # PostgreSQL default port
+
+            - name: DB_NAME
+              value: usersdb       # which database to connect to inside PostgreSQL
+                                   # this database was created by init.sql in the postgres ConfigMap
+
+            - name: DB_USER        # database username — pulled from Secret (not hardcoded here)
+              valueFrom:           # valueFrom = read the value from somewhere else (not hardcoded)
+                secretKeyRef:      # specifically from a Secret
+                  name: postgres-secret  # the name of the Secret (must exist in same namespace)
+                  key: POSTGRES_USER     # which key inside that Secret to read
+
+            - name: DB_PASSWORD    # database password — also pulled from Secret
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD  # reads the password from the Secret
+                                          # the actual value never appears in this YAML file
+
+          readinessProbe:          # readinessProbe = is the pod READY to receive traffic?
+                                   # Kubernetes only routes traffic to a pod AFTER this passes
+                                   # if it fails, the pod is removed from the Service until it recovers
+            httpGet:               # make an HTTP GET request to check readiness
+              path: /health        # our Node.js app has a GET /health endpoint that returns 200
+              port: 3000           # check on port 3000 (where our app listens)
+            initialDelaySeconds: 10  # wait 10 seconds before first check
+                                     # needed because Node.js takes a few seconds to start and connect to DB
+            periodSeconds: 5         # check every 5 seconds
+            failureThreshold: 3      # fail 3 times in a row before marking pod as not-ready
+                                     # prevents flapping from a single slow response
+
+          livenessProbe:           # livenessProbe = is the pod still ALIVE and healthy?
+                                   # if this fails, Kubernetes KILLS and RESTARTS the container
+                                   # handles cases where app is running but stuck/frozen
+            httpGet:
+              path: /health        # same endpoint — returns 200 if app is working
+              port: 3000
+            initialDelaySeconds: 30  # wait 30 seconds before first liveness check
+                                     # MUST be longer than readinessProbe initialDelay
+                                     # if liveness starts before readiness passes → kills pod in a loop
+            periodSeconds: 10        # check every 10 seconds (less frequent than readiness)
+            failureThreshold: 3      # kill container only after 3 consecutive failures (30 seconds)
+                                     # avoids killing on a single slow response
+
+          resources:               # resources = CPU and memory allocation
+            requests:              # requests = MINIMUM guaranteed — used by scheduler
+              memory: "128Mi"      # reserve 128 MB RAM for this container on the node
+              cpu: "100m"          # 100m = 0.1 CPU core (10% of one core)
+            limits:                # limits = MAXIMUM allowed before action is taken
+              memory: "256Mi"      # if container uses > 256Mi → OOMKilled (restarted)
+              cpu: "300m"          # if container uses > 0.3 core → throttled (slowed down, NOT killed)
+                                   # setting limits prevents one bad pod from starving other pods on the node

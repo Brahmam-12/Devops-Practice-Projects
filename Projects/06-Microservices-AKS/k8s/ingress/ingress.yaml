@@ -1,0 +1,110 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: microservices-ingress
+  namespace: microservices
+
+spec:
+  ingressClassName: nginx
+
+  # ── ABOUT THE host FIELD ───────────────────────────────────────────────────
+  #
+  # host is OPTIONAL in Ingress rules.
+  #
+  # WITHOUT host (what we have now):
+  #   Matches ANY request that comes to the Ingress IP, regardless of domain.
+  #   Use this when:
+  #     - You only have an IP (no domain name yet)
+  #     - Development / testing phase
+  #     - You have only one app and don't need domain-based routing
+  #
+  #   curl http://20.1.2.3/users       ✅ works (using IP directly)
+  #   curl http://myapp.com/users      ✅ works (if DNS points to this IP)
+  #   curl http://anything.com/users   ✅ works (any domain, NGINX doesn't check)
+  #
+  # WITH host (production setup):
+  #   Matches ONLY when the incoming request's Host header = the value you set.
+  #   Use this when:
+  #     - You have a real domain name (myapp.com, api.company.com)
+  #     - You have MULTIPLE domains on the same Ingress (host-based routing)
+  #     - You are using TLS/HTTPS (cert is tied to a domain)
+  #
+  #   - host: api.company.com        ← only matches requests for api.company.com
+  #     http:
+  #       paths:
+  #         - path: /users ...
+  #
+  #   curl http://20.1.2.3/users          ❌ fails — Host header = IP, not api.company.com
+  #   curl http://api.company.com/users   ✅ works — Host header matches
+  #
+  # ── HOST-BASED ROUTING EXAMPLE (multiple domains, one Ingress) ────────────
+  #
+  # rules:
+  #   - host: api.company.com          ← public API
+  #     http:
+  #       paths:
+  #         - path: /users    → user-service
+  #         - path: /products → product-service
+  #
+  #   - host: admin.company.com        ← admin panel (different domain, same cluster)
+  #     http:
+  #       paths:
+  #         - path: /         → admin-service
+  #
+  # ── FOR THIS PROJECT ──────────────────────────────────────────────────────
+  # We leave host out because:
+  #   Step 1: test locally with docker compose (no domain, just localhost)
+  #   Step 2: deploy to AKS — Ingress gets a public IP, test with the IP
+  #   Step 3: when you buy a domain and point DNS to this IP,
+  #           add host: yourdomain.com to restrict to that domain only
+  # ──────────────────────────────────────────────────────────────────────────
+
+  rules:
+    - http:               # no host: here — matches any domain or direct IP access
+        paths:
+
+          - path: /users
+            pathType: Prefix
+            backend:
+              service:
+                name: user-service
+                port:
+                  number: 3000
+
+          - path: /products
+            pathType: Prefix
+            backend:
+              service:
+                name: product-service
+                port:
+                  number: 3001
+
+  # ── WHEN YOU ADD A DOMAIN — update to this ────────────────────────────────
+  #
+  # rules:
+  #   - host: api.company.com          ← add this line with your domain
+  #     http:
+  #       paths:
+  #         - path: /users
+  #           pathType: Prefix
+  #           backend:
+  #             service:
+  #               name: user-service
+  #               port:
+  #                 number: 3000
+  #
+  #         - path: /products
+  #           pathType: Prefix
+  #           backend:
+  #             service:
+  #               name: product-service
+  #               port:
+  #                 number: 3001
+  #
+  # Then also add TLS for HTTPS:
+  #
+  # tls:
+  #   - hosts:
+  #       - api.company.com
+  #     secretName: api-company-tls    ← Secret containing the SSL certificate
+  # ──────────────────────────────────────────────────────────────────────────

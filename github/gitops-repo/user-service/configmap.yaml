@@ -1,0 +1,26 @@
+# ── ConfigMap ─────────────────────────────────────────────────────────────────
+# ConfigMap data: section uses ONLY simple key: "value" pairs.
+# NEVER use - name: / value: / valueFrom: syntax here — that is Deployment syntax.
+# NEVER store passwords or secrets here — ConfigMap is plain text, visible to anyone
+# with kubectl access. Passwords go in a Secret.
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: user-service-config
+  namespace: microservices
+data:
+  # ── Non-sensitive app config (safe to store here) ──────────────────────────
+  LOG_LEVEL:       "info"         # debug | info | warn | error
+  NODE_ENV:        "production"
+  APP_VERSION:     "1.0"
+  MAX_CONNECTIONS: "10"           # DB connection pool size (pool.max in index.js)
+
+  # ── Non-sensitive connection config (hostname/port are not secrets) ─────────
+  PORT:    "3000"                 # port our Node.js app listens on
+  DB_HOST: "postgres"             # Kubernetes DNS name of the postgres Service
+  DB_PORT: "5432"                 # PostgreSQL default port
+  DB_NAME: "usersdb"              # which database inside PostgreSQL
+  # DB_USER and DB_PASSWORD are NOT here — they are secrets, see below
+
+

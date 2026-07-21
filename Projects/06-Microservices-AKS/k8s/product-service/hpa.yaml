@@ -1,0 +1,43 @@
+# ─── HPA (product-service) ────────────────────────────────────────────────────
+# HorizontalPodAutoscaler watches CPU usage and scales the Deployment up/down.
+#
+# HOW IT WORKS:
+#   1. Metrics Server samples CPU usage of each pod every 15s
+#   2. HPA checks every 15s: avg CPU across all pods vs. the target %
+#   3. If avg CPU > 70% of request (70m) → scale UP (add pods)
+#   4. If avg CPU < 70% and we have spare pods → scale DOWN (remove pods)
+#   5. Scale-down waits 5 minutes (default) to avoid flapping
+#
+# PREREQUISITE: Metrics Server must be installed in the cluster.
+#   AKS enables it by default. Verify: kubectl top pods -n microservices
+#
+# TARGET CALCULATION:
+#   CPU request per pod = 100m (from deployment.yaml)
+#   Target utilization  = 70%
+#   Scale-up triggers when: avg CPU per pod > 70m
+
+apiVersion: autoscaling/v2         # v2 supports multiple metrics and fine-grained behavior
+kind: HorizontalPodAutoscaler
+metadata:
+  name: product-service-hpa
+  namespace: microservices         # must match the Deployment namespace
+
+spec:
+  scaleTargetRef:                  # which workload to scale
+    apiVersion: apps/v1
+    kind: Deployment
+    name: product-service          # must match metadata.name in product-service/deployment.yaml
+
+  minReplicas: 2                   # never scale below 2 — ensures high availability at all times
+                                   # matches baseline replicas in deployment.yaml
+  maxReplicas: 10                  # never scale above 10 — caps infra cost during traffic spikes
+
+  metrics:
+    - type: Resource               # scale on a built-in resource metric (CPU or Memory)
+      resource:
+        name: cpu
+        target:
+          type: Utilization        # Utilization = % of the pod's CPU *request* being used
+          averageUtilization: 70   # scale up when avg pod CPU > 70% of request (70m)
+                                   # 70% is a safe headroom: leaves room to absorb sudden spikes
+                                   # before new pods are fully ready (readinessProbe: 10s delay)

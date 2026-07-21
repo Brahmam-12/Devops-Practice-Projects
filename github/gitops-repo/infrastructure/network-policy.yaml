@@ -1,0 +1,98 @@
+# ─── NetworkPolicy ────────────────────────────────────────────────────────────
+# By default, ALL pods in a namespace can talk to ALL other pods (no isolation).
+# NetworkPolicy adds a firewall at the pod level.
+#
+# RULES WE ENFORCE:
+#   1. user-service    ← only accepts traffic from nginx ingress controller
+#   2. product-service ← only accepts traffic from nginx ingress controller
+#   3. postgres        ← only accepts traffic from user-service and product-service
+#   4. All pods        → can reach kube-dns (UDP 53) for DNS resolution
+#   5. Everything else is DENIED by default (implicit deny-all once any policy exists)
+#
+# PREREQUISITE: Your CNI plugin must support NetworkPolicy.
+#   AKS with Azure CNI or Calico: supported.
+#   AKS with kubenet only: NOT supported — NetworkPolicy is ignored.
+#   Check: az aks show --name <cluster> --resource-group <rg> --query networkProfile
+---
+# Allow ingress-nginx → user-service (port 3000)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-to-user-service
+  namespace: microservices
+spec:
+  podSelector:
+    matchLabels:
+      app: user-service
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx  # only ingress-nginx namespace
+      ports:
+        - protocol: TCP
+          port: 3000
+---
+# Allow ingress-nginx → product-service (port 3001)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-to-product-service
+  namespace: microservices
+spec:
+  podSelector:
+    matchLabels:
+      app: product-service
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 3001
+---
+# Allow user-service and product-service → postgres (port 5432)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-services-to-postgres
+  namespace: microservices
+spec:
+  podSelector:
+    matchLabels:
+      app: postgres
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: user-service
+        - podSelector:
+            matchLabels:
+              app: product-service
+      ports:
+        - protocol: TCP
+          port: 5432
+---
+# Allow all pods in namespace to reach kube-dns for DNS resolution
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  namespace: microservices
+spec:
+  podSelector: {}              # applies to ALL pods in namespace
+  policyTypes:
+    - Egress
+  egress:
+    - ports:
+        - protocol: UDP
+          port: 53             # DNS
+        - protocol: TCP
+          port: 53
