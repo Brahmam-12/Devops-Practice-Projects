@@ -1,0 +1,257 @@
+// ─── INFRASTRUCTURE JENKINS PIPELINE ─────────────────────────────────────────
+//
+// THIS FILE LIVES IN: github.com/company/infrastructure-terraform
+//
+// WHO RUNS THIS?
+//   Only the DevOps / Platform team runs this pipeline.
+//   Application developers do NOT have access to this repo or this pipeline.
+//   Infrastructure changes are more dangerous than app changes —
+//   one wrong Terraform line can delete a VPC with everything in it.
+//
+// WHEN IS THIS TRIGGERED?
+//   When a DevOps engineer pushes Terraform code to infrastructure-terraform repo.
+//   Webhook fires → Jenkins runs this pipeline.
+//
+// WHAT DOES THIS PIPELINE CREATE?
+//   VPC (network)  → subnets, NAT gateway, route tables
+//   EKS cluster    → Kubernetes cluster where all services run
+//   ECR repos      → where Docker images are stored
+//   IAM roles      → permissions for Jenkins, EKS nodes, ArgoCD
+//   S3 bucket      → Terraform remote state storage (after first manual creation)
+//
+// KEY DIFFERENCE FROM APP PIPELINE:
+//   App pipeline:   fast, runs on every commit, no manual approval needed
+//   Infra pipeline: has a MANUAL APPROVAL step before terraform apply
+//                   because infrastructure changes can be destructive
+//
+// FULL FLOW:
+//   DevOps engineer writes Terraform → git push → Jenkins
+//   → terraform plan (shows what will change)
+//   → PAUSE: engineer reviews plan output
+//   → Engineer clicks "Proceed" in Jenkins
+//   → terraform apply
+//   → Infrastructure created/updated in AWS
+//   → EKS cluster ready → App pipelines can now deploy to it
+
+pipeline {
+
+    agent any
+
+    // Which Terraform module to apply — passed as parameter when triggering
+    // or run separately per module (vpc, eks, iam)
+    parameters {
+        choice(
+            name: 'MODULE',
+            choices: ['vpc', 'eks', 'iam'],
+            description: 'Which Terraform module to plan and apply'
+        )
+        booleanParam(
+            name: 'DESTROY',
+            defaultValue: false,
+            description: 'Run terraform destroy instead of apply (DANGEROUS — destroys real infra)'
+        )
+    }
+
+    environment {
+        // AWS credentials stored in Jenkins — same account where EKS will be created
+        AWS_CRED_ID    = 'aws-credentials'       // AWS access key + secret key
+        TF_DIR         = "${params.MODULE}"       // e.g. "vpc" or "eks"
+
+        // The S3 bucket that stores Terraform state (created manually once)
+        TF_STATE_BUCKET = 'company-terraform-state'
+        AWS_REGION      = 'us-east-1'
+    }
+
+    stages {
+
+        // ── STAGE 1: CHECKOUT ───────────────────────────────────────────────
+        // Clone infrastructure-terraform repo — contains all Terraform modules
+        stage('Checkout') {
+            steps {
+                checkout scm
+                sh 'echo "Applying module: ${TF_DIR}"'
+                sh 'terraform --version'    // confirm Terraform is installed on agent
+            }
+        }
+
+        // ── STAGE 2: TERRAFORM INIT ─────────────────────────────────────────
+        // Download providers (AWS provider) and configure the S3 backend.
+        // After init, Terraform knows to store state in S3, not locally.
+        //
+        // Why S3 for state?
+        //   If state is local on the Jenkins agent, it's lost when agent restarts.
+        //   S3 gives: persistent storage, versioning (rollback), locking (DynamoDB).
+        stage('Terraform Init') {
+            steps {
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding',
+                                  credentialsId: "${AWS_CRED_ID}",
+                                  accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                                  secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+                    dir("${TF_DIR}") {
+                        sh """
+                            terraform init \
+                                -backend-config="bucket=${TF_STATE_BUCKET}" \
+                                -backend-config="region=${AWS_REGION}"
+                        """
+                    }
+                }
+            }
+        }
+
+        // ── STAGE 3: TERRAFORM VALIDATE ─────────────────────────────────────
+        // Check that the Terraform syntax is correct before doing anything.
+        // Catches typos, missing required fields, wrong resource names.
+        stage('Terraform Validate') {
+            steps {
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding',
+                                  credentialsId: "${AWS_CRED_ID}",
+                                  accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                                  secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+                    dir("${TF_DIR}") {
+                        sh 'terraform validate'
+                        sh 'echo "Terraform syntax is valid"'
+                    }
+                }
+            }
+        }
+
+        // ── STAGE 4: TERRAFORM PLAN ─────────────────────────────────────────
+        // Show EXACTLY what Terraform will create, change, or destroy.
+        // The plan output is saved to a file so the exact plan is applied later.
+        //
+        // Why save the plan to a file?
+        //   Between plan and apply, nothing should change.
+        //   If we run plan again at apply time, it could produce a different plan
+        //   if someone else changed the Terraform code or AWS state.
+        //   Saving the plan ensures we apply exactly what we reviewed.
+        //
+        // ALWAYS review this output before approving.
+        // Look for: "will be destroyed" → if unexpected, abort.
+        stage('Terraform Plan') {
+            steps {
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding',
+                                  credentialsId: "${AWS_CRED_ID}",
+                                  accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                                  secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+                    dir("${TF_DIR}") {
+                        sh """
+                            terraform plan \
+                                -out=tfplan \
+                                -detailed-exitcode \
+                                || true
+                            # -out=tfplan saves the plan to a file
+                            # -detailed-exitcode: exit 0 = no changes, exit 2 = changes
+                        """
+                        // Show plan summary to Jenkins log
+                        sh 'terraform show tfplan'
+                    }
+                }
+            }
+        }
+
+        // ── STAGE 5: MANUAL APPROVAL ────────────────────────────────────────
+        // PAUSE the pipeline and wait for a human to review and approve.
+        // The engineer reads the plan output from Stage 4 and decides:
+        //   - Do the planned changes look correct?
+        //   - Is anything being unexpectedly destroyed?
+        //   - Does this match what was intended?
+        //
+        // This is the most important safety gate in the infrastructure pipeline.
+        // There is NO manual approval in the app CI pipeline —
+        // infra changes are more dangerous.
+        //
+        // Timeout: if nobody approves within 30 minutes, pipeline aborts.
+        stage('Approval Required') {
+            when {
+                not { expression { return params.DESTROY } }
+            }
+            steps {
+                timeout(time: 30, unit: 'MINUTES') {
+                    input(
+                        message: """
+                        Review the Terraform plan above.
+                        Module: ${params.MODULE}
+
+                        ⚠️  Does the plan look correct?
+                        ⚠️  Are any resources unexpectedly being DESTROYED?
+
+                        Click Proceed to apply, Abort to cancel.
+                        """,
+                        ok: 'Proceed with terraform apply'
+                    )
+                }
+            }
+        }
+
+        // ── STAGE 6: DESTROY APPROVAL (separate gate) ───────────────────────
+        // Extra warning before terraform destroy — requires typing "DESTROY" to confirm
+        stage('Destroy Approval') {
+            when {
+                expression { return params.DESTROY }
+            }
+            steps {
+                timeout(time: 10, unit: 'MINUTES') {
+                    input(
+                        message: """
+                        ⛔ DANGER: You are about to DESTROY real infrastructure.
+                        Module: ${params.MODULE}
+
+                        This will permanently delete AWS resources.
+                        Are you absolutely sure?
+                        """,
+                        ok: 'YES, DESTROY the infrastructure'
+                    )
+                }
+            }
+        }
+
+        // ── STAGE 7: TERRAFORM APPLY ────────────────────────────────────────
+        // Apply the EXACT plan saved in Stage 4 (not a fresh plan).
+        // Creates/updates/destroys resources as planned.
+        //
+        // What gets created when you apply each module:
+        //   vpc: VPC, 2 public subnets, 2 private subnets, IGW, NAT Gateway, route tables
+        //   eks: EKS control plane, node groups (EC2 instances), IAM roles for nodes
+        //   iam: Jenkins IAM user, ECR push permissions, EKS access roles
+        stage('Terraform Apply') {
+            when {
+                not { expression { return params.DESTROY } }
+            }
+            steps {
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding',
+                                  credentialsId: "${AWS_CRED_ID}",
+                                  accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                                  secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+                    dir("${TF_DIR}") {
+                        sh 'terraform apply tfplan'
+                        // tfplan = the plan file saved in Stage 4
+                        // No -auto-approve flag — we already approved in Stage 5
+                        sh 'terraform output'    // show outputs (VPC id, cluster name, etc.)
+                    }
+                }
+            }
+        }
+
+        // ── STAGE 8: TERRAFORM DESTROY (only if DESTROY=true) ───────────────
+        stage('Terraform Destroy') {
+            when {
+                expression { return params.DESTROY }
+            }
+            steps {
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding',
+                                  credentialsId: "${AWS_CRED_ID}",
+                                  accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                                  secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+                    dir("${TF_DIR}") {
+                        sh 'terraform destroy -auto-approve'
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        success { echo "✅ Terraform ${params.DESTROY ? 'destroy' : 'apply'} succeeded for module: ${params.MODULE}" }
+        failure { echo "❌ Terraform pipeline failed. Infrastructure unchanged." }
+    }
+}

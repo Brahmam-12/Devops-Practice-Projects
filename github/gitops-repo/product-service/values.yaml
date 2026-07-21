@@ -1,0 +1,36 @@
+# ── values.yaml (product-service) ────────────────────────────────────────────
+# Same structure as user-service/values.yaml.
+# Jenkins updates only the tag: line on every successful build.
+
+image:
+  repository: microservicesacr.azurecr.io/product-service
+  tag: "1"           # ← Jenkins updates this: "1" → "2" → "3"...
+  pullPolicy: IfNotPresent
+
+replicaCount: 2
+
+service:
+  type: ClusterIP
+  port: 3001
+
+resources:
+  requests:
+    memory: "128Mi"
+    cpu: "100m"
+  limits:
+    memory: "256Mi"
+    cpu: "300m"
+
+readinessProbe:
+  path: /health
+  initialDelaySeconds: 10
+
+livenessProbe:
+  path: /health
+  initialDelaySeconds: 30
+
+env:
+  PORT: "3001"
+  DB_HOST: postgres
+  DB_PORT: "5432"
+  DB_NAME: productsdb

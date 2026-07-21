@@ -1,0 +1,74 @@
+# ── ArgoCD Applications ───────────────────────────────────────────────────────
+# All ArgoCD Application definitions in one file.
+# Apply this ONCE: kubectl apply -f argocd/applications.yaml
+# After that, ArgoCD manages all deployments automatically.
+
+# ── user-service app ──────────────────────────────────────────────────────────
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: user-service
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/company/gitops-repo.git
+    targetRevision: main
+    path: user-service          # ArgoCD detects Chart.yaml here → uses Helm automatically
+    helm:
+      valueFiles:
+        - values.yaml           # Helm reads this to fill {{ .Values.* }} in templates/
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: microservices
+  syncPolicy:
+    automated:
+      prune: true               # delete K8s resources removed from Git
+      selfHeal: true            # revert manual kubectl changes
+
+---
+# ── product-service app ───────────────────────────────────────────────────────
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: product-service
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/company/gitops-repo.git
+    targetRevision: main
+    path: product-service
+    helm:
+      valueFiles:
+        - values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: microservices
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+
+---
+# ── infrastructure app ────────────────────────────────────────────────────────
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: infrastructure
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/company/gitops-repo.git
+    targetRevision: main
+    path: infrastructure        # namespace, secrets, ingress — rarely changes
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: microservices
+  syncPolicy:
+    automated:
+      prune: false              # never auto-delete infrastructure
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

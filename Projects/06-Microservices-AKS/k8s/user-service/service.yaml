@@ -1,0 +1,37 @@
+# ─── SERVICE (user-service) ──────────────────────────────────────────────────
+# This Service gives user-service pods a stable internal address.
+# The Ingress routes traffic to this Service — not directly to pods.
+#
+# WHY WE NEED THIS EVEN THOUGH INGRESS EXISTS:
+#   Ingress → Service → Pods   (not: Ingress → Pods directly)
+#   The Ingress controller needs a Service to forward to.
+#   The Service load-balances across the 2 replicas automatically.
+#
+# TYPE ClusterIP means:
+#   - accessible ONLY inside the cluster
+#   - the Ingress controller (running inside the cluster) CAN reach it
+#   - outside users CANNOT reach it directly (they go through Ingress)
+
+apiVersion: v1          # core API group for Services
+kind: Service           # we are creating a Service
+metadata:
+  name: user-service    # this name is used in ingress.yaml under backend.service.name
+                        # must match exactly — typo here = 404 from Ingress
+  namespace: microservices  # same namespace as the pods it routes to
+
+spec:
+  type: ClusterIP       # ClusterIP = internal cluster IP only, no external access
+                        # correct choice: the Ingress already handles external access
+
+  selector:             # selector = which pods does this Service route traffic to?
+    app: user-service   # routes to pods that have label "app: user-service"
+                        # matches template.metadata.labels in user-service/deployment.yaml
+                        # if you add a new pod with this label, it automatically gets traffic
+
+  ports:
+    - port: 3000        # port this Service listens on INSIDE the cluster
+                        # Ingress and other pods connect to: user-service:3000
+      targetPort: 3000  # port on the POD to forward to
+                        # must match containerPort in deployment.yaml (our Node.js app port)
+                        # port and targetPort are same here, but they CAN differ
+                        # e.g. port: 80, targetPort: 3000 would let others call user-service:80

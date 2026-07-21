@@ -1,0 +1,6 @@
+apiVersion: v2
+name: user-service
+description: Helm chart for user-service microservice
+type: application
+version: 1.0.0       # chart version — increment when chart structure changes
+appVersion: "1.0"    # app version — informational only, actual version comes from values.yaml image.tag

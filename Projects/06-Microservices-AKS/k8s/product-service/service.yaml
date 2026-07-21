@@ -1,0 +1,28 @@
+# ─── SERVICE (product-service) ───────────────────────────────────────────────
+# Same structure as user-service/service.yaml — only the name and port differ.
+# Read user-service/service.yaml comments for detailed explanation.
+#
+# This Service:
+#   - gives product-service pods a stable internal DNS name: product-service:3001
+#   - Ingress uses this Service name to forward /products/* requests
+#   - load balances across both product-service pod replicas automatically
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: product-service  # name used in ingress.yaml under backend.service.name
+                         # must match exactly — case sensitive
+  namespace: microservices
+
+spec:
+  type: ClusterIP        # internal only — internet cannot reach this Service directly
+                         # Ingress controller (inside cluster) can reach it
+
+  selector:
+    app: product-service  # routes traffic to pods with label "app: product-service"
+                          # matches template.metadata.labels in product-service/deployment.yaml
+                          # Kubernetes automatically discovers new/removed pods via this selector
+
+  ports:
+    - port: 3001          # Ingress connects to product-service:3001
+      targetPort: 3001    # forwards to port 3001 on each pod (where product-service Node.js app listens)

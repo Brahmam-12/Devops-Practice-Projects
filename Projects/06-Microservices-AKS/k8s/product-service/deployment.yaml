@@ -1,0 +1,87 @@
+# ─── DEPLOYMENT (product-service) ────────────────────────────────────────────
+# Same structure as user-service/deployment.yaml — only 3 things differ:
+#   1. name: product-service (not user-service)
+#   2. image tag: product-service:v1
+#   3. DB_NAME: productsdb (not usersdb) and PORT: 3001 (not 3000)
+# Read user-service/deployment.yaml comments for detailed explanation of each field.
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: product-service    # name of this Deployment
+  namespace: microservices
+
+spec:
+  replicas: 2              # 2 pods running in parallel — if 1 crashes, the other still serves traffic
+                           # both pods are identical copies of the same image
+
+  selector:
+    matchLabels:
+      app: product-service  # Deployment owns pods with this label
+
+  template:
+    metadata:
+      labels:
+        app: product-service  # label on every pod — must match selector above AND service selector
+
+    spec:
+      containers:
+        - name: product-service
+          image: <YOUR_ACR_NAME>.azurecr.io/product-service:v1
+                        # replace <YOUR_ACR_NAME> with your actual ACR name
+                        # e.g. microservicesacr12345.azurecr.io/product-service:v1
+                        # AKS pulls this image from Azure Container Registry using the attached identity
+
+          ports:
+            - containerPort: 3001  # product-service runs on port 3001 (different from user-service port 3000)
+
+          env:
+            - name: PORT
+              value: "3001"        # product-service listens on 3001 — must match containerPort above
+
+            - name: DB_HOST
+              value: postgres      # Kubernetes DNS resolves "postgres" → postgres Service ClusterIP
+                                   # this is the postgres Service name in postgres/service.yaml
+
+            - name: DB_PORT
+              value: "5432"        # PostgreSQL default port
+
+            - name: DB_NAME
+              value: productsdb    # product-service uses "productsdb" database
+                                   # created by init.sql — different from user-service's "usersdb"
+
+            - name: DB_USER
+              valueFrom:           # do NOT hardcode credentials — read from Secret
+                secretKeyRef:
+                  name: postgres-secret  # the Secret we created in postgres/secret.yaml
+                  key: POSTGRES_USER     # reads the value of POSTGRES_USER key from that Secret
+
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD  # reads password from Secret — never visible in this YAML
+
+          readinessProbe:          # checks if pod is ready to receive traffic
+            httpGet:
+              path: /health        # GET /health on our Node.js app — returns 200 if healthy
+              port: 3001           # check on port 3001 (product-service port)
+            initialDelaySeconds: 10  # wait 10s before first check — Node.js needs time to start + connect DB
+            periodSeconds: 5         # re-check every 5 seconds
+            failureThreshold: 3      # mark not-ready after 3 consecutive failures
+
+          livenessProbe:           # checks if pod is still alive — kills and restarts if it fails
+            httpGet:
+              path: /health
+              port: 3001
+            initialDelaySeconds: 30  # MUST be > readinessProbe initialDelay to avoid kill-on-startup loop
+            periodSeconds: 10        # check less frequently than readiness (less expensive)
+            failureThreshold: 3      # only restart after 3 consecutive failures (tolerates single slow response)
+
+          resources:
+            requests:
+              memory: "128Mi"      # minimum 128MB RAM guaranteed on the node
+              cpu: "100m"          # minimum 0.1 CPU core guaranteed
+            limits:
+              memory: "256Mi"      # maximum RAM — exceeded → OOMKilled and restarted
+              cpu: "300m"          # maximum CPU — exceeded → throttled (slowed, not killed)

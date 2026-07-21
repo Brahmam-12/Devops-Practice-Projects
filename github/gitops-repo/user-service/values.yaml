@@ -1,0 +1,59 @@
+# ── values.yaml ────────────────────────────────────────────────────────────────
+# This is the ONLY file Jenkins touches on every build.
+# All other files (deployment.yaml, service.yaml, hpa.yaml) are Helm TEMPLATES
+# that read their values from here using {{ .Values.fieldName }} syntax.
+#
+# WHO CHANGES WHAT:
+#   Jenkins CI    → image.tag only (automated, on every build)
+#   DevOps team   → replicaCount, resources, hpa limits (manual, when needed)
+#   Dev team      → configmap values like LOG_LEVEL (manual, when config changes)
+
+# ── Image ──────────────────────────────────────────────────────────────────────
+# Jenkins updates ONLY image.tag on every successful build.
+# image.repository never changes — only the tag changes.
+image:
+  repository: microservicesacr.azurecr.io/user-service
+  tag: "1"            # ← Jenkins changes this line only: "1" → "2" → "3"
+  pullPolicy: IfNotPresent
+
+# ── Scaling ────────────────────────────────────────────────────────────────────
+replicaCount: 2       # baseline pods — HPA can scale this up/down at runtime
+
+hpa:
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+
+# ── Service ────────────────────────────────────────────────────────────────────
+service:
+  type: ClusterIP
+  port: 3000
+
+# ── Resources ──────────────────────────────────────────────────────────────────
+resources:
+  requests:
+    memory: "128Mi"
+    cpu: "100m"
+  limits:
+    memory: "256Mi"
+    cpu: "300m"
+
+# ── Health Checks ──────────────────────────────────────────────────────────────
+readinessProbe:
+  path: /health
+  initialDelaySeconds: 10
+
+livenessProbe:
+  path: /health
+  initialDelaySeconds: 30
+
+# ── App Config (injected via ConfigMap into pod as env vars) ───────────────────
+configmap:
+  LOG_LEVEL:       "info"
+  NODE_ENV:        "production"
+  APP_VERSION:     "1.0"
+  MAX_CONNECTIONS: "10"
+  PORT:            "3000"
+  DB_HOST:         "postgres"
+  DB_PORT:         "5432"
+  DB_NAME:         "usersdb"

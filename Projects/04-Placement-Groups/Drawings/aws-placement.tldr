@@ -1,0 +1,92 @@
+{
+	"tldrawFileFormatVersion": 1,
+	"schema": {
+		"schemaVersion": 2,
+		"sequences": {
+			"com.tldraw.store": 5,
+			"com.tldraw.asset": 1,
+			"com.tldraw.camera": 1,
+			"com.tldraw.document": 2,
+			"com.tldraw.instance": 26,
+			"com.tldraw.instance_page_state": 5,
+			"com.tldraw.page": 1,
+			"com.tldraw.instance_presence": 6,
+			"com.tldraw.pointer": 1,
+			"com.tldraw.shape": 4,
+			"com.tldraw.user": 1,
+			"com.tldraw.asset.image": 6,
+			"com.tldraw.asset.video": 5,
+			"com.tldraw.asset.bookmark": 2,
+			"com.tldraw.shape.group": 0,
+			"com.tldraw.shape.text": 4,
+			"com.tldraw.shape.bookmark": 2,
+			"com.tldraw.shape.draw": 4,
+			"com.tldraw.shape.geo": 11,
+			"com.tldraw.shape.note": 12,
+			"com.tldraw.shape.line": 5,
+			"com.tldraw.shape.frame": 1,
+			"com.tldraw.shape.arrow": 8,
+			"com.tldraw.shape.highlight": 3,
+			"com.tldraw.shape.embed": 4,
+			"com.tldraw.shape.image": 5,
+			"com.tldraw.shape.video": 4,
+			"com.tldraw.binding.arrow": 1
+		}
+	},
+	"records": [
+		{"x":0,"y":0,"lastActivityTimestamp":0,"meta":{},"id":"pointer:pointer","typeName":"pointer"},
+		{"x":-80,"y":-40,"z":0.8,"meta":{},"id":"camera:page:page","typeName":"camera"},
+		{"meta":{},"id":"page:page","name":"Page 1","index":"a1","typeName":"page"},
+		{"gridSize":10,"name":"","meta":{},"id":"document:document","typeName":"document"},
+		{"editingShapeId":null,"croppingShapeId":null,"selectedShapeIds":[],"hoveredShapeId":null,"erasingShapeIds":[],"hintingShapeIds":[],"focusedGroupId":null,"meta":{},"id":"instance_page_state:page:page","pageId":"page:page","typeName":"instance_page_state"},
+		{"followingUserId":null,"opacityForNextShape":1,"stylesForNextShape":{},"brush":null,"scribbles":[],"cursor":{"type":"default","rotation":0},"isFocusMode":false,"exportBackground":true,"isDebugMode":false,"isToolLocked":false,"screenBounds":{"x":0,"y":0,"w":1612,"h":918},"insets":[false,false,true,false],"zoomBrush":null,"isGridMode":false,"isPenMode":false,"chatMessage":"","isChatting":false,"highlightedUserIds":[],"isFocused":true,"devicePixelRatio":1,"isCoarsePointer":false,"isHoveringCanvas":false,"openMenus":[],"isChangingStyle":false,"isReadonly":false,"meta":{},"duplicateProps":null,"cameraState":"idle","id":"instance:instance","currentPageId":"page:page","typeName":"instance"},
+
+		{"x":400,"y":10,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:title","type":"text","props":{"color":"black","size":"xl","w":650,"font":"draw","textAlign":"middle","autoSize":true,"scale":1,"richText":{"type":"doc","attrs":{"dir":"auto"},"content":[{"type":"paragraph","attrs":{"dir":"auto"},"content":[{"type":"text","text":"AWS EC2 Placement Groups"}]}]}},"parentId":"page:page","index":"a0","typeName":"shape"},
+
+		{"x":50,"y":80,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:cluster-box","type":"geo","props":{"w":340,"h":290,"geo":"rectangle","dash":"draw","growY":0,"url":"","scale":1,"color":"blue","labelColor":"black","fill":"semi","size":"m","font":"draw","align":"middle","verticalAlign":"start","richText":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"CLUSTER Placement Group"}]}]}},"parentId":"page:page","index":"a1","typeName":"shape"},
+
+		{"x":70,"y":130,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:cluster-rack","type":"geo","props":{"w":300,"h":160,"geo":"rectangle","dash":"draw","growY":0,"url":"","scale":1,"color":"grey","labelColor":"black","fill":"semi","size":"s","font":"draw","align":"middle","verticalAlign":"start","richText":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Same Rack / Same AZ"}]}]}},"parentId":"page:page","index":"a2","typeName":"shape"},
+
+		{"x":85,"y":180,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:c-ec2-1","type":"geo","props":{"w":70,"h":50,"geo":"rectangle","dash":"draw","growY":0,"url":"","scale":1,"color":"grey","labelColor":"black","fill":"solid","size":"s","font":"draw","align":"middle","verticalAlign":"middle","richText":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"EC2"}]}]}},"parentId":"page:page","index":"a3","typeName":"shape"},
+
+		{"x":185,"y":180,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:c-ec2-2","type":"geo","props":{"w":70,"h":50,"geo":"rectangle","dash":"draw","growY":0,"url":"","scale":1,"color":"grey","labelColor":"black","fill":"solid","size":"s","font":"draw","align":"middle","verticalAlign":"middle","richText":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"EC2"}]}]}},"parentId":"page:page","index":"a4","typeName":"shape"},
+
+		{"x":285,"y":180,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:c-ec2-3","type":"geo","props":{"w":70,"h":50,"geo":"rectangle","dash":"draw","growY":0,"url":"","scale":1,"color":"grey","labelColor":"black","fill":"solid","size":"s","font":"draw","align":"middle","verticalAlign":"middle","richText":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"EC2"}]}]}},"parentId":"page:page","index":"a5","typeName":"shape"},
+
+		{"x":70,"y":300,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:cluster-note","type":"text","props":{"color":"black","size":"s","w":280,"font":"draw","textAlign":"start","autoSize":true,"scale":1,"richText":{"type":"doc","attrs":{"dir":"auto"},"content":[{"type":"paragraph","attrs":{"dir":"auto"},"content":[{"type":"text","text":"Use: HPC, MPI, low-latency\nLatency: < 1ms\nBandwidth: up to 25Gbps\nConstraint: Single AZ only"}]}]}},"parentId":"page:page","index":"a6","typeName":"shape"},
+
+		{"x":450,"y":80,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:spread-box","type":"geo","props":{"w":380,"h":290,"geo":"rectangle","dash":"draw","growY":0,"url":"","scale":1,"color":"green","labelColor":"black","fill":"semi","size":"m","font":"draw","align":"middle","verticalAlign":"start","richText":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"SPREAD Placement Group"}]}]}},"parentId":"page:page","index":"a7","typeName":"shape"},
+
+		{"x":465,"y":145,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:rack1","type":"geo","props":{"w":80,"h":120,"geo":"rectangle","dash":"draw","growY":0,"url":"","scale":1,"color":"grey","labelColor":"black","fill":"semi","size":"s","font":"draw","align":"middle","verticalAlign":"start","richText":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Rack1"}]}]}},"parentId":"page:page","index":"a8","typeName":"shape"},
+
+		{"x":480,"y":195,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:s-ec2-1","type":"geo","props":{"w":55,"h":45,"geo":"rectangle","dash":"draw","growY":0,"url":"","scale":1,"color":"grey","labelColor":"black","fill":"solid","size":"s","font":"draw","align":"middle","verticalAlign":"middle","richText":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"EC2"}]}]}},"parentId":"page:page","index":"a9","typeName":"shape"},
+
+		{"x":580,"y":145,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:rack2","type":"geo","props":{"w":80,"h":120,"geo":"rectangle","dash":"draw","growY":0,"url":"","scale":1,"color":"grey","labelColor":"black","fill":"semi","size":"s","font":"draw","align":"middle","verticalAlign":"start","richText":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Rack2"}]}]}},"parentId":"page:page","index":"a10","typeName":"shape"},
+
+		{"x":595,"y":195,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:s-ec2-2","type":"geo","props":{"w":55,"h":45,"geo":"rectangle","dash":"draw","growY":0,"url":"","scale":1,"color":"grey","labelColor":"black","fill":"solid","size":"s","font":"draw","align":"middle","verticalAlign":"middle","richText":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"EC2"}]}]}},"parentId":"page:page","index":"a11","typeName":"shape"},
+
+		{"x":695,"y":145,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:rack3","type":"geo","props":{"w":80,"h":120,"geo":"rectangle","dash":"draw","growY":0,"url":"","scale":1,"color":"grey","labelColor":"black","fill":"semi","size":"s","font":"draw","align":"middle","verticalAlign":"start","richText":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Rack3"}]}]}},"parentId":"page:page","index":"a12","typeName":"shape"},
+
+		{"x":710,"y":195,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:s-ec2-3","type":"geo","props":{"w":55,"h":45,"geo":"rectangle","dash":"draw","growY":0,"url":"","scale":1,"color":"grey","labelColor":"black","fill":"solid","size":"s","font":"draw","align":"middle","verticalAlign":"middle","richText":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"EC2"}]}]}},"parentId":"page:page","index":"a13","typeName":"shape"},
+
+		{"x":460,"y":300,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:spread-note","type":"text","props":{"color":"black","size":"s","w":300,"font":"draw","textAlign":"start","autoSize":true,"scale":1,"richText":{"type":"doc","attrs":{"dir":"auto"},"content":[{"type":"paragraph","attrs":{"dir":"auto"},"content":[{"type":"text","text":"Use: Critical HA instances\nMax: 7 per AZ\nIsolation: Different physical racks\nSpans: Multiple AZs OK"}]}]}},"parentId":"page:page","index":"a14","typeName":"shape"},
+
+		{"x":890,"y":80,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:part-box","type":"geo","props":{"w":400,"h":290,"geo":"rectangle","dash":"draw","growY":0,"url":"","scale":1,"color":"orange","labelColor":"black","fill":"semi","size":"m","font":"draw","align":"middle","verticalAlign":"start","richText":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"PARTITION Placement Group (3 partitions)"}]}]}},"parentId":"page:page","index":"a15","typeName":"shape"},
+
+		{"x":905,"y":150,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:part0","type":"geo","props":{"w":108,"h":110,"geo":"rectangle","dash":"draw","growY":0,"url":"","scale":1,"color":"yellow","labelColor":"black","fill":"semi","size":"s","font":"draw","align":"middle","verticalAlign":"start","richText":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Part 0"}]}]}},"parentId":"page:page","index":"a16","typeName":"shape"},
+
+		{"x":920,"y":195,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:p-ec2-1","type":"geo","props":{"w":55,"h":40,"geo":"rectangle","dash":"draw","growY":0,"url":"","scale":1,"color":"grey","labelColor":"black","fill":"solid","size":"s","font":"draw","align":"middle","verticalAlign":"middle","richText":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"EC2"}]}]}},"parentId":"page:page","index":"a17","typeName":"shape"},
+
+		{"x":1030,"y":150,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:part1","type":"geo","props":{"w":108,"h":110,"geo":"rectangle","dash":"draw","growY":0,"url":"","scale":1,"color":"yellow","labelColor":"black","fill":"semi","size":"s","font":"draw","align":"middle","verticalAlign":"start","richText":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Part 1"}]}]}},"parentId":"page:page","index":"a18","typeName":"shape"},
+
+		{"x":1045,"y":195,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:p-ec2-2","type":"geo","props":{"w":55,"h":40,"geo":"rectangle","dash":"draw","growY":0,"url":"","scale":1,"color":"grey","labelColor":"black","fill":"solid","size":"s","font":"draw","align":"middle","verticalAlign":"middle","richText":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"EC2"}]}]}},"parentId":"page:page","index":"a19","typeName":"shape"},
+
+		{"x":1155,"y":150,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:part2","type":"geo","props":{"w":108,"h":110,"geo":"rectangle","dash":"draw","growY":0,"url":"","scale":1,"color":"yellow","labelColor":"black","fill":"semi","size":"s","font":"draw","align":"middle","verticalAlign":"start","richText":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Part 2"}]}]}},"parentId":"page:page","index":"a20","typeName":"shape"},
+
+		{"x":1170,"y":195,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:p-ec2-3","type":"geo","props":{"w":55,"h":40,"geo":"rectangle","dash":"draw","growY":0,"url":"","scale":1,"color":"grey","labelColor":"black","fill":"solid","size":"s","font":"draw","align":"middle","verticalAlign":"middle","richText":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"EC2"}]}]}},"parentId":"page:page","index":"a21","typeName":"shape"},
+
+		{"x":900,"y":300,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:part-note","type":"text","props":{"color":"black","size":"s","w":360,"font":"draw","textAlign":"start","autoSize":true,"scale":1,"richText":{"type":"doc","attrs":{"dir":"auto"},"content":[{"type":"paragraph","attrs":{"dir":"auto"},"content":[{"type":"text","text":"Use: Hadoop, Cassandra, Kafka\nPartitions share no hardware\nWithin partition may share HW\nMax partitions: 7 per AZ"}]}]}},"parentId":"page:page","index":"a22","typeName":"shape"},
+
+		{"x":55,"y":420,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:summary","type":"text","props":{"color":"black","size":"s","w":1200,"font":"draw","textAlign":"start","autoSize":true,"scale":1,"richText":{"type":"doc","attrs":{"dir":"auto"},"content":[{"type":"paragraph","attrs":{"dir":"auto"},"content":[{"type":"text","text":"CLUSTER: Same rack, <1ms latency, max bandwidth — best for tightly coupled HPC workloads. Must use same AZ."}]},{"type":"paragraph","attrs":{"dir":"auto"},"content":[{"type":"text","text":"SPREAD: Max HA — each instance on different physical hardware. Max 7/AZ. Best for critical independent services."}]},{"type":"paragraph","attrs":{"dir":"auto"},"content":[{"type":"text","text":"PARTITION: Fault-isolated groups for big-data systems. Different partitions = different hardware. No sharing across partitions."}]}]}},"parentId":"page:page","index":"a23","typeName":"shape"}
+	]
+}

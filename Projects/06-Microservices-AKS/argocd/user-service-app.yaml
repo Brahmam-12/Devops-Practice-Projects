@@ -1,0 +1,150 @@
+# ─── ARGOCD APPLICATION ───────────────────────────────────────────────────────
+# An ArgoCD Application tells ArgoCD:
+#   1. WHERE is the Git repository that has the K8s manifests?
+#   2. WHICH folder inside that repo to watch?
+#   3. WHICH Kubernetes cluster to deploy to?
+#   4. WHICH namespace to deploy into?
+#
+# ArgoCD constantly compares:
+#   "What does Git say should be deployed?"  (desired state)
+#   vs
+#   "What is actually running in the cluster?" (live state)
+#
+# If they differ → ArgoCD syncs (applies the Git version to the cluster).
+# This is the CD (Continuous Delivery) part of the pipeline.
+#
+# HOW ARGOCD FITS INTO THE FULL FLOW:
+#   Jenkins pushes new image tag to deployment.yaml in Git
+#        ↓
+#   ArgoCD detects the Git change (polls every 3 min or via webhook)
+#        ↓
+#   ArgoCD runs: kubectl apply -f k8s/user-service/deployment.yaml
+#        ↓
+#   Kubernetes creates new pods with the new image
+#        ↓
+#   Old pods terminate after new pods are healthy (rolling update)
+
+apiVersion: argoproj.io/v1alpha1   # argoproj.io = ArgoCD's API group
+                                    # this is a Custom Resource Definition (CRD) installed by ArgoCD
+kind: Application                   # we are creating an ArgoCD Application resource
+metadata:
+  name: user-service                # name of this ArgoCD Application — visible in ArgoCD UI
+  namespace: argocd                 # ArgoCD Application resources always live in the argocd namespace
+                                    # (even though they deploy INTO the microservices namespace)
+
+spec:
+
+  project: default                  # ArgoCD project — "default" project allows deploying anywhere
+                                    # you can create custom projects to restrict which repos/clusters
+                                    # a team can deploy to (RBAC for ArgoCD)
+
+  # ── SOURCE: where the K8s manifests live ────────────────────────────────────
+  source:
+    repoURL: https://github.com/YOUR_ORG/YOUR_REPO.git
+    # The Git repository URL that ArgoCD will watch.
+    # This is the SAME repo that Jenkins pushes the updated deployment.yaml to.
+    # ArgoCD clones this repo and watches for changes.
+
+    targetRevision: main
+    # Which branch to watch.
+    # main = watch the main branch.
+    # You could also use a specific commit hash or tag for extra control.
+
+    path: k8s/user-service
+    # Which FOLDER inside the repo contains the K8s manifests for user-service.
+    # ArgoCD will apply ALL .yaml files in this folder.
+    # In our project this folder contains:
+    #   deployment.yaml  ← ArgoCD applies this to AKS
+    #   service.yaml     ← ArgoCD applies this to AKS
+
+  # ── DESTINATION: which cluster and namespace to deploy to ────────────────────
+  destination:
+    server: https://kubernetes.default.svc
+    # The Kubernetes API server URL.
+    # https://kubernetes.default.svc = the cluster ArgoCD itself runs in (in-cluster).
+    # For a remote cluster you'd use the cluster's API server URL.
+
+    namespace: microservices
+    # Which namespace to deploy the resources into.
+    # Must exist before sync — we created it with: kubectl apply -f k8s/namespace.yaml
+
+  # ── SYNC POLICY: how ArgoCD should sync ─────────────────────────────────────
+  syncPolicy:
+
+    automated:
+      # automated = ArgoCD syncs AUTOMATICALLY when it detects a Git change.
+      # Without this, you would have to manually click "Sync" in the ArgoCD UI.
+
+      prune: true
+      # prune = if you DELETE a resource from Git, ArgoCD deletes it from the cluster too.
+      # Example: you remove service.yaml from Git → ArgoCD deletes the Service in AKS.
+      # Without prune: deleted files in Git leave orphaned resources in the cluster.
+
+      selfHeal: true
+      # selfHeal = if someone manually changes a resource in the cluster (kubectl edit),
+      # ArgoCD automatically reverts it back to what Git says.
+      # This enforces GitOps: Git is the ONLY way to change what runs in production.
+      # Without selfHeal: manual changes can cause drift between Git and cluster.
+
+    syncOptions:
+      - CreateNamespace=true
+      # If the namespace does not exist, ArgoCD creates it automatically.
+      # Useful so you don't have to manually run: kubectl apply -f k8s/namespace.yaml
+
+---
+
+# ─── ARGOCD APPLICATION FOR PRODUCT-SERVICE ───────────────────────────────────
+# Separate Application for product-service.
+# Each service has its own ArgoCD Application so they can be deployed independently.
+# If user-service has a bad image, you can sync/rollback just user-service
+# without touching product-service.
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: product-service
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/YOUR_ORG/YOUR_REPO.git
+    targetRevision: main
+    path: k8s/product-service     # different folder — only product-service manifests
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: microservices
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+
+---
+
+# ─── ARGOCD APPLICATION FOR INFRASTRUCTURE (postgres + ingress) ───────────────
+# Postgres and Ingress are not deployed by the service pipelines.
+# They are infrastructure — managed separately so service deploys don't touch them.
+# A separate team or process manages this app.
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: infrastructure
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/YOUR_ORG/YOUR_REPO.git
+    targetRevision: main
+    path: k8s              # watches the entire k8s/ folder
+                           # includes: namespace.yaml, postgres/, ingress/
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: microservices
+  syncPolicy:
+    automated:
+      prune: false         # do NOT auto-delete infra — too risky
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
