@@ -1,0 +1,155 @@
+trigger:
+  branches:
+    include:
+      - main
+
+stages:
+  - stage: Buildstage
+    displayName: Running Build Stage
+
+    jobs:
+      - job: buildjob
+        displayName: Running Build Job
+        pool:
+          vmImage: ubuntu-latest
+
+        steps:
+          - task: DotNetCoreCLI@2
+            inputs:
+              command: publish
+              projects: '**/*.slnx'
+              arguments: '--configuration Release --output=$(Build.ArtifactStagingDirectory)'
+
+          - task: PublishBuildArtifact@1
+            inputs:
+              PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+              ArtifactName: drop
+              PublishLocation: Container
+      
+      - job: TerraformBootstrap
+        displayName: Run Terraform bootstarp scripts
+        pool:
+          vmImage: ubuntu-latest
+        
+        steps:
+          - task: TerraformInstaller@1
+            inputs:
+              terraformVersion: latest
+          
+          - task: AzureCLI@2
+            inputs:
+              ConnectionType: AzureRM
+              azureSubscription: Netflix-Service-Connection
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                cd $(Build.SourcesDirectory)/terraform/bootstrap
+                terraform init 
+                terraform apply --auto-approve
+
+
+  - stage: DevInfra
+    displayName: Creating Dev Infra
+    dependsOn: Buildstage
+
+    pool:
+      vmImage: ubuntu-latest
+    
+    jobs:
+      - job: DevInfraJob
+        environment: devEnv
+        displayName: Running Terraform Dev Infra
+        steps:
+          - task: TerraformInstaller@1
+            inputs:
+              terraformVersion: latest
+
+          - task: AzureCLI@2
+            inputs:
+              ConnectionType: AzureRM
+              azureSubscription: Netflix-Service-Connection
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                cd $(Build.SourcesDirectory)/terraform/environments/dev
+                terraform init --backend-config="dev-backend.conf"
+                terraform apply --auto-approve
+
+  - stage: DevDeploy
+    displayName: Deploy In Dev
+    dependsOn: DevInfra
+
+    jobs:
+      - deployment: DeployDev
+        environment: devEnv
+        pool:
+          vmImage: ubuntu-latest
+        
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - download: current
+                  artifact: drop 
+
+
+                - task: AzureRmWebAppDeployment@5
+                  inputs:
+                    ConnectionType: AzureRM
+                    azureSubscription: Netflix-Service-Connection
+                    appType: webApp
+                    webAppName: dev-web-app
+                    packageForLinux: $(Pipeline.Workspace)/drop/**/*.zip
+
+  - stage: ProdInfra
+    displayName: Runing Prod Infra
+    dependsOn: Buildstage
+
+    pool:
+      vmImage: ubuntu-latest
+
+    jobs:
+      - job: prodJob
+        environment: prodEnv
+
+        steps:
+          - task: TerraformInstaller@2
+            inputs:
+              terraformVersion: latest
+
+          - task: AzureCLI@2
+            inputs: 
+              ConnectionType: AzureRM
+              azureSubscription: Netflix-Service-Connection
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                cd $(Build.SourcesDirectory)/terraform/environments/prod
+                terraform init --backend-config="prod.conf"
+                terraform apply --auto-approve
+  
+  - stage: ProdDeploy
+    dependsOn: ProdInfra
+    displayName: prod infra
+
+    pool:
+      vmImage: ubuntu-latest
+    
+    jobs:
+      - deployment: prodDeployment
+        environment: prodEnv
+
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - download: current
+                  artifact: drop
+                
+                - task: AzureRmWebAppDeployment@5
+                  inputs:
+                    ConnectionType: AzureRM
+                    azureSubscription: Netflix-Service-Connection
+                    appType: webApp
+                    webAppName: prod-web-app
+                    packageForLinux: $(Pipeline.Workspace)/drop/**/*.zip

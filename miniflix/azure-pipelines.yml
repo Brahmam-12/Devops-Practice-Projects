@@ -1,0 +1,151 @@
+# ─── AZURE DEVOPS PIPELINE — miniflix ────────────────────────────────────────
+#
+# THIS FILE LIVES IN: github.com/company/miniflix  (app repo)
+#
+# WHAT IS AZURE DEVOPS PIPELINES?
+#   Microsoft's built-in CI/CD tool — no separate Jenkins server needed.
+#   Azure spins up a fresh Ubuntu VM for every pipeline run.
+#   After the pipeline finishes, the VM is deleted automatically.
+#
+# FULL FLOW:
+#   Developer pushes to main branch
+#   → GitHub webhook fires → Azure DevOps picks it up
+#   → Spins up Ubuntu VM (pool: vmImage)
+#   → Runs all steps top to bottom
+#   → Builds Docker image → pushes to ACR
+#   → VM deleted
+#
+# DIFFERENCE FROM JENKINSFILE:
+#   Jenkins:      you manage your own Jenkins server + agents
+#   Azure DevOps: Microsoft manages the runner VM — nothing to install
+
+# ─── TRIGGER ──────────────────────────────────────────────────────────────────
+# Defines WHEN this pipeline runs automatically.
+# trigger: main = run whenever anyone pushes a commit to the "main" branch.
+# GitHub webhook notifies Azure DevOps → pipeline starts within seconds.
+trigger:
+  - main
+
+# ─── POOL ─────────────────────────────────────────────────────────────────────
+# Defines WHAT machine runs the pipeline.
+# vmImage: ubuntu-latest = Microsoft spins up a fresh Ubuntu VM for every run.
+# The VM comes pre-installed with: docker, git, node, npm, python, etc.
+# Jenkins equivalent: agent any  (but that uses your own VM, not Microsoft's)
+pool:
+  vmImage: 'ubuntu-latest'
+
+# ─── VARIABLES ────────────────────────────────────────────────────────────────
+# Reusable values referenced throughout the pipeline using $(VAR_NAME) syntax.
+# Jenkins uses ${VAR_NAME} — Azure DevOps uses $(VAR_NAME).
+# Define once here → use everywhere below → change in one place if needed.
+variables:
+  SERVICE_NAME: 'miniflix'                        # name of this microservice
+
+  ACR_NAME:     'miniflixacr'   # Azure Container Registry name
+                                                   # where Docker images are stored after build
+  ACR_REGISTRY: $(ACR_NAME).azurecr.io            # full registry URL
+                                                   # result: miniflixacr-e6frchh0hvg3h4ba.azurecr.io
+
+  IMAGE_NAME: $(ACR_REGISTRY)/$(SERVICE_NAME)     # full image path (without tag)
+                                                   # result: miniflixacr-e6frchh0hvg3h4ba.azurecr.io/miniflix
+
+  IMAGE_TAG: $(Build.BuildId)                      # Azure built-in variable — unique number per run: 1, 2, 3...
+                                                   # Jenkins equivalent: ${BUILD_NUMBER}
+                                                   # ensures every image has a unique, traceable tag
+
+# ─── STEPS ────────────────────────────────────────────────────────────────────
+# The actual work — runs top to bottom on the Ubuntu VM.
+# Azure DevOps uses a flat "steps:" list.
+# Jenkins uses nested: pipeline > stages > stage > steps
+# If any step fails → pipeline stops → remaining steps are skipped.
+steps:
+
+  # ── STEP 1: CHECKOUT ────────────────────────────────────────────────────────
+  # Clone THIS repo (miniflix source code) onto the pipeline VM.
+  # "self" = the repo that contains this azure-pipelines.yml file.
+  # Jenkins equivalent: checkout scm
+  - checkout: self
+
+  # Print git info to the pipeline log — useful for debugging which commit triggered this.
+  - script: |
+      echo "===Git Information==="
+      git log --oneline -5                      # last 5 commits
+      echo "Branch: $(Build.SourceBranchName)"  # which branch triggered this (main)
+      echo "Commit: $(Build.SourceVersion)"      # full commit hash — links build to exact code
+    displayName: "Checkout Information"          # label shown in Azure DevOps UI pipeline view
+
+  # ── STEP 2: INSTALL NODE.JS ──────────────────────────────────────────────────
+  # "task:" = a pre-built Azure DevOps plugin — like a Jenkins plugin but built-in.
+  # NodeTool@0 installs the specified Node.js version on the VM.
+  # Without this, the VM might have an older Node.js version.
+  - task: NodeTool@0
+    inputs:
+      versionSpec: '22.x'    # install Node.js 22 — must match what the app requires
+    displayName: "Install node.js"
+
+  # ── STEP 3: INSTALL DEPENDENCIES ─────────────────────────────────────────────
+  # Reads package.json → downloads all npm packages listed under "dependencies".
+  # Creates node_modules/ folder on the VM.
+  # Must run BEFORE syntax check or docker build (app code needs its packages).
+  - script: |
+      npm install
+    displayName: "Install Dependencies"
+
+  # ── STEP 4: SYNTAX CHECK ─────────────────────────────────────────────────────
+  # node --check = parse the JS file and report syntax errors WITHOUT running it.
+  # Catches mistakes like missing brackets, typos before we waste time building a Docker image.
+  # This is NOT a full test — it only checks syntax, not logic or behavior.
+  # For full tests, add: npm test (requires test files to exist)
+  - script: |
+      node --check app.js
+    displayName: "Node.js syntax Check"
+
+  # ── STEP 5: DOCKER BUILD ─────────────────────────────────────────────────────
+  # Build a Docker image from the app source code using the Dockerfile.
+  # -t = tag the image with the full name and build number.
+  # Result: miniflixacr-e6frchh0hvg3h4ba.azurecr.io/miniflix:42
+  # The image lives on the VM's local Docker daemon at this point — not in ACR yet.
+  - script: |
+      docker build \
+        -t $(IMAGE_NAME):$(IMAGE_TAG) \
+        .
+    displayName: "Docker Build"
+
+  # Verify the image was created and show its size — useful for debugging.
+  - script: |
+      docker images | grep $(SERVICE_NAME)
+    displayName: "Show Docker Images"
+
+  # ── STEP 6: PUSH IMAGE TO ACR ─────────────────────────────────────────────────
+  # Upload the Docker image from the VM to Azure Container Registry.
+  # Docker@2 = pre-built Azure DevOps task that handles ACR login automatically.
+  # It reads credentials from the Service Connection (miniflix-docker-connection)
+  # set up once in: Azure DevOps → Project Settings → Service Connections.
+  # The ACR password never appears in this YAML file — stored securely in Azure DevOps.
+  # Jenkins equivalent: withCredentials([...]) { sh 'docker login && docker push' }
+  - task: Docker@2
+    displayName: "push Image"
+    inputs:
+      command: push                              # push the already-built image to ACR
+      repository: $(SERVICE_NAME)            # repository name inside ACR: "miniflix"
+      dockerfile: Dockerfile                     # location of Dockerfile (informational for this task)
+      containerRegistry: miniflix-service-connection  # name of the Service Connection
+                                                     # this is how Azure DevOps authenticates to ACR
+                                                     # no credentials in this file
+      # tags: uses YAML literal block (|) — everything indented below is taken as-is.
+      # Comments CANNOT go inside a literal block — they become part of the value.
+      # Keep this block clean — only the tag value, nothing else.
+      tags: |
+        $(Build.BuildId)
+
+  # ── MISSING STEPS (needed for full GitOps flow) ───────────────────────────────
+  # This pipeline stops after pushing the image.
+  # For ArgoCD to deploy the new image automatically, add these steps:
+  #
+  #   1. Security scan (Trivy) — scan image for vulnerabilities before deploying
+  #   2. Clone gitops-repo
+  #   3. Update values.yaml: image.tag from old → $(Build.BuildId)
+  #   4. git commit + push to gitops-repo
+  #   → ArgoCD detects the change → Helm renders → cluster updated
+  #
+  # Without step 4, ArgoCD never knows a new image was pushed → no deployment happens.

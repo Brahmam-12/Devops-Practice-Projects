@@ -1,0 +1,31 @@
+# ─── ServiceAccounts ──────────────────────────────────────────────────────────
+# Every pod runs under a ServiceAccount identity.
+# By default all pods share the "default" ServiceAccount — bad practice because:
+#   - no audit trail (all pods look the same in API server logs)
+#   - if one pod is compromised, it shares identity with all other pods
+#   - Kubernetes auto-mounts an API token into every pod even if unused
+#
+# We give each service its OWN ServiceAccount with:
+#   automountServiceAccountToken: false
+#   → pods get NO Kubernetes API token mounted inside them
+#   → even if a container is compromised, it cannot talk to the API server
+#   → our Node.js apps only talk to PostgreSQL — they never need K8s API access
+#
+# WHAT THIS COVERS IN THE API SERVER PIPELINE:
+#   Authentication: pod presents this SA identity to the API server
+#   Authorization:  SA has no Role/RoleBinding → can do NOTHING in K8s API (correct)
+#   Admission:      no impact from SA itself
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: user-service-sa
+  namespace: microservices
+automountServiceAccountToken: false   # no K8s API token mounted — pod doesn't need it
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: product-service-sa
+  namespace: microservices
+automountServiceAccountToken: false   # no K8s API token mounted — pod doesn't need it

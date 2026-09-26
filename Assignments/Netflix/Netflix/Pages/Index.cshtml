@@ -1,0 +1,310 @@
+﻿@page
+@model IndexModel
+@{
+    Layout = null;
+    ViewData["Title"] = "MiniFlix";
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>MiniFlix</title>
+
+    <style>
+
+            *{
+                margin:0;
+                padding:0;
+                box-sizing:border-box;
+                font-family:Arial,Helvetica,sans-serif;
+            }
+
+            body{
+                background:#111;
+                color:#fff;
+            }
+
+            /* Navbar */
+
+            nav{
+                position:fixed;
+                top:0;
+                left:0;
+                width:100%;
+                height:70px;
+                background:rgba(0,0,0,.85);
+                display:flex;
+                justify-content:space-between;
+                align-items:center;
+                padding:0 60px;
+                z-index:100;
+            }
+
+            .logo{
+                font-size:34px;
+                font-weight:bold;
+                color:#e50914;
+            }
+
+            nav ul{
+                display:flex;
+                list-style:none;
+            }
+
+            nav ul li{
+                margin-left:30px;
+            }
+
+            nav ul li a{
+                text-decoration:none;
+                color:white;
+            }
+
+            .profile{
+                width:40px;
+                height:40px;
+                border-radius:5px;
+            }
+
+            /* Hero */
+
+            .hero{
+
+                height:90vh;
+
+                background:
+                linear-gradient(rgba(0,0,0,.65),rgba(0,0,0,.95)),
+                url("https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=1600");
+
+                background-size:cover;
+                background-position:center;
+
+                display:flex;
+                align-items:center;
+                padding-left:70px;
+            }
+
+            .hero-content{
+
+                width:600px;
+
+            }
+
+            .hero h1{
+
+                font-size:65px;
+                margin-bottom:20px;
+
+            }
+
+            .hero p{
+
+                font-size:18px;
+                line-height:1.7;
+                color:#ddd;
+
+            }
+
+            .buttons{
+
+                margin-top:30px;
+
+            }
+
+            button{
+
+                padding:14px 35px;
+                border:none;
+                border-radius:5px;
+                font-size:16px;
+                cursor:pointer;
+                margin-right:15px;
+                font-weight:bold;
+
+            }
+
+            .play{
+
+                background:white;
+                color:black;
+
+            }
+
+            .info{
+
+                background:#666;
+                color:white;
+
+            }
+
+            /* Movie Rows */
+
+            .section{
+
+                padding:30px 60px;
+
+            }
+
+            .section h2{
+
+                margin-bottom:20px;
+
+            }
+
+            .row{
+
+                display:flex;
+                gap:15px;
+                overflow:auto;
+                padding-bottom:10px;
+
+            }
+
+            .row::-webkit-scrollbar{
+
+                display:none;
+
+            }
+
+            .card{
+
+                min-width:220px;
+                height:320px;
+                transition:.3s;
+                border-radius:8px;
+                overflow:hidden;
+
+            }
+
+            .card:hover{
+
+                transform:scale(1.08);
+
+            }
+
+            .card img{
+
+                width:100%;
+                height:100%;
+                object-fit:cover;
+
+            }
+
+            footer{
+
+                text-align:center;
+                padding:40px;
+                color:#888;
+
+            }
+
+    </style>
+
+</head>
+
+<body>
+
+    <nav>
+
+        <div class="logo">MINIFLIX</div>
+
+        <ul>
+
+            <li><a href="#">Home</a></li>
+            <li><a href="#">Movies</a></li>
+            <li><a href="#">TV Shows</a></li>
+            <li><a href="#">My List</a></li>
+
+        </ul>
+
+        <img class="profile" src="https://i.pravatar.cc/100">
+
+    </nav>
+
+    <div class="hero">
+
+        <div class="hero-content">
+
+            <h1>MiniFlix Originals</h1>
+
+            <p>
+
+                Watch thousands of blockbuster movies and TV shows in one place.
+                Built with ASP.NET Core Razor Pages for Azure DevOps, Docker and Kubernetes practice.
+
+            </p>
+
+            <div class="buttons">
+
+                <button class="play">▶ Play</button>
+
+                <button class="info">More Info</button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="section">
+
+        <h2>Trending</h2>
+
+        <div class="row">
+
+            <div class="card"><img src="https://picsum.photos/220/320?1"></div>
+            <div class="card"><img src="https://picsum.photos/220/320?2"></div>
+            <div class="card"><img src="https://picsum.photos/220/320?3"></div>
+            <div class="card"><img src="https://picsum.photos/220/320?4"></div>
+            <div class="card"><img src="https://picsum.photos/220/320?5"></div>
+            <div class="card"><img src="https://picsum.photos/220/320?6"></div>
+
+        </div>
+
+    </div>
+
+    <div class="section">
+
+        <h2>Popular Movies</h2>
+
+        <div class="row">
+
+            <div class="card"><img src="https://picsum.photos/220/320?11"></div>
+            <div class="card"><img src="https://picsum.photos/220/320?12"></div>
+            <div class="card"><img src="https://picsum.photos/220/320?13"></div>
+            <div class="card"><img src="https://picsum.photos/220/320?14"></div>
+            <div class="card"><img src="https://picsum.photos/220/320?15"></div>
+            <div class="card"><img src="https://picsum.photos/220/320?16"></div>
+
+        </div>
+
+    </div>
+
+    <div class="section">
+
+        <h2>Continue Watching</h2>
+
+        <div class="row">
+
+            <div class="card"><img src="https://picsum.photos/220/320?21"></div>
+            <div class="card"><img src="https://picsum.photos/220/320?22"></div>
+            <div class="card"><img src="https://picsum.photos/220/320?23"></div>
+            <div class="card"><img src="https://picsum.photos/220/320?24"></div>
+            <div class="card"><img src="https://picsum.photos/220/320?25"></div>
+            <div class="card"><img src="https://picsum.photos/220/320?26"></div>
+
+        </div>
+
+    </div>
+
+    <footer>
+
+        © 2026 MiniFlix • ASP.NET Core Razor Pages • Azure DevOps Demo
+
+    </footer>
+
+</body>
+</html>

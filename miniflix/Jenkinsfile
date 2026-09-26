@@ -1,0 +1,94 @@
+pipeline {
+    agent any
+
+    environment {
+        service_name = 'miniflix'
+        login_server = 'miniflixacr.azurecr.io'
+        image_tag = "${BUILD_NUMBER}"
+        image_name = "${login_server}/${service_name}:${image_tag}"
+        cred_id = 'miniflix-id-test'
+    }
+
+    stages {
+        stage('checkout'){
+            steps {
+                echo "checking out code from source control manager"
+                checkout scm
+                
+                echo "check status"
+                sh 'git status'
+
+                echo "check branch"
+                sh 'git branch'
+
+                echo "show lst 5 commits"
+                sh 'git log --oneline -5'
+
+                echo "check revision parsing"
+                sh 'git rev-parse HEAD'
+            }
+        }
+
+        stage ('Install & Test') {
+            steps{
+                echo "Install packages"
+                sh 'npm install'
+
+                echo "Test javascript synatx"
+                sh 'node --check app.js'
+            }
+        }
+
+        stage ('Build Images'){
+            steps{
+                echo "Building Docker image"
+                sh """
+                    set -e
+                    docker build \
+                        -t ${image_name}
+                        .
+                    echo "see docker images"
+                    docker images
+                """
+            }
+        }
+
+        stage ('Push Image to ACR') {
+            steps {
+                echo "logging int acr"
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: "${cred_id}",
+                        username: "${ACR_NAME}",
+                        password: "${ACR_PASS}"
+                    )
+                ]){
+                    echo "Loggin In"
+                    sh """
+                        set -e
+                        echo \${ACR_PASS} | docker login ${login_server} \
+                        -u ${ACR_USER} --password-stdin
+
+                        echo "Pushing Images"
+                        docker push ${image_name}
+                        docker logout ${login_server}
+                    """
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "Build Success"
+        }
+        failure {   
+            echo  "Build Failed"
+        }
+        always {
+            echo "Cleaning workspace paths"
+            cleanWs()
+        }
+    }
+
+}

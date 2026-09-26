@@ -1,0 +1,208 @@
+name: Pipeline for Build, Infrastructure and Deployment
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+
+  # =========================================================
+  # 1. BUILD
+  # =========================================================
+
+  BuildJob:
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Dotnet Publish
+        run: |
+          dotnet publish \
+            --configuration Release \
+            --output ./publish
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: drop
+          path: ./publish
+
+
+  # =========================================================
+  # 2. BOOTSTRAP
+  # =========================================================
+
+  BootstrapJob:
+
+    runs-on: ubuntu-latest
+
+    needs: BuildJob
+
+    steps:
+
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.12.2
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Terraform Init and Apply
+        run: |
+          cd ${{ github.workspace }}/terraform/bootstrap
+
+          terraform init
+
+          terraform apply --auto-approve
+
+
+  # =========================================================
+  # 3. DEV INFRASTRUCTURE
+  # =========================================================
+
+  DevInfra:
+
+    runs-on: ubuntu-latest
+
+    needs: BootstrapJob
+
+    environment: devEnv
+
+    steps:
+
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.12.2
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Terraform Init and Apply
+        run: |
+          cd ${{ github.workspace }}/terraform/environments/dev
+
+          terraform init
+
+          terraform apply --auto-approve
+
+
+  # =========================================================
+  # 4. DEV DEPLOYMENT
+  # =========================================================
+
+  DevDeploy:
+
+    runs-on: ubuntu-latest
+
+    needs: DevInfra
+
+    environment: devEnv
+
+    steps:
+
+      - name: Download Artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: drop
+          path: ./publish
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy Dev App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: dev-web-app
+          package: ./publish
+
+
+  # =========================================================
+  # 5. PROD INFRASTRUCTURE
+  # =========================================================
+
+  ProdInfra:
+
+    runs-on: ubuntu-latest
+
+    needs: DevDeploy
+
+    environment: prodEnv
+
+    steps:
+
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.12.2
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Terraform Init and Apply
+        run: |
+          cd ${{ github.workspace }}/terraform/environments/prod
+
+          terraform init
+
+          terraform apply --auto-approve
+
+
+  # =========================================================
+  # 6. PROD DEPLOYMENT
+  # =========================================================
+
+  ProdDeploy:
+
+    runs-on: ubuntu-latest
+
+    needs: ProdInfra
+
+    environment: prodEnv
+
+    steps:
+
+      - name: Download Artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: drop
+          path: ./publish
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy Prod App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: prod-web-app
+          package: ./publish

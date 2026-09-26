@@ -1,0 +1,4 @@
+resource_group_name="prod-rsg"
+location="East US"
+webapp_name = "netflix-app-prod"
+app_service_plan = "netflix-prod-asp"

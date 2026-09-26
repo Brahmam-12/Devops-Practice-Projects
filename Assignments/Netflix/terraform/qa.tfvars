@@ -1,0 +1,5 @@
+resource_group_name="qa-rsg"
+location="East US"
+webapp_name = "netflix-app-qa"
+app_service_plan = "netflix-qa-asp"
+acr_name = "netflixacrbrahmam"

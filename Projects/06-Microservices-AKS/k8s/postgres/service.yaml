@@ -1,0 +1,34 @@
+# ─── SERVICE (for PostgreSQL) ────────────────────────────────────────────────
+# A Service gives pods a stable network address (name + IP).
+# Without a Service, pods get random IPs that change every restart.
+# With a Service, user-service always connects to "postgres" by name — never needs to know the IP.
+#
+# HOW IT WORKS:
+#   user-service sets DB_HOST=postgres
+#   → Kubernetes DNS resolves "postgres" → ClusterIP of this Service
+#   → Service forwards the request to the postgres pod
+#   → Even if the postgres pod restarts and gets a new IP, the Service IP stays the same
+
+apiVersion: v1        # core API — v1 for Services
+kind: Service         # we are creating a Service resource
+metadata:
+  name: postgres      # THIS NAME IS CRITICAL — it becomes the DNS hostname inside the cluster
+                      # other pods reach postgres at: postgres:5432
+                      # so DB_HOST=postgres in user-service and product-service deployments
+  namespace: microservices  # must be in the same namespace as the postgres pod
+spec:
+  type: ClusterIP     # ClusterIP = only reachable INSIDE the cluster (no external access)
+                      # this is correct for a database — it must never be exposed to the internet
+                      # other types: NodePort (accessible on node IP), LoadBalancer (external IP)
+
+  selector:           # selector = which pods does this Service send traffic to?
+    app: postgres     # any pod with label "app: postgres" receives traffic from this Service
+                      # this matches the label in postgres/deployment.yaml → template.metadata.labels
+
+  ports:
+    - port: 5432      # port = the port THIS SERVICE listens on
+                      # other pods connect to: postgres:5432
+      targetPort: 5432  # targetPort = the port on the POD to forward traffic to
+                        # must match containerPort in the Deployment (PostgreSQL listens on 5432)
+                        # if your app uses port 3000 internally but you want to expose as 80:
+                        # port: 80, targetPort: 3000

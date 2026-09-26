@@ -1,0 +1,46 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: microservices-ingress
+  namespace: microservices
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          - path: /users
+            pathType: Prefix
+            backend:
+              service:
+                name: user-service
+                port:
+                  number: 3000
+          - path: /products
+            pathType: Prefix
+            backend:
+              service:
+                name: product-service
+                port:
+                  number: 3001
+
+
+Yes — understood. You want only a short, formal confirmation letter saying you have been selected by EPAM and mentioning the package, with a line telling the reader to refer to the offer letter for the detailed terms.
+
+EPAM Systems – Selection Confirmation
+
+Dear Veera Brahmam,
+
+We are pleased to inform you that you have been selected for the position of Software Engineer at EPAM Systems.
+
+Based on your skills, experience, and performance throughout the selection process, we are happy to offer you the position with an annual compensation of ₹21,00,000 (21 LPA).
+
+Position: Senior Software Engineer
+Annual Package: ₹21,00,000 (21 LPA)
+
+Congratulations on your selection. We look forward to welcoming you to EPAM.
+
+For complete details regarding your compensation, benefits, joining date, and other terms and conditions, please refer to your official EPAM offer letter.
+
+Sincerely,
+Talent Acquisition Team
+EPAM Systems

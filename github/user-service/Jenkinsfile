@@ -1,0 +1,170 @@
+// ─── user-service CI PIPELINE ─────────────────────────────────────────────────
+//
+// THIS FILE LIVES IN: github.com/company/user-service  (app repo)
+//
+// MULTI-REPO FLOW:
+//
+//  [user-service repo]          [gitops-repo]              [AKS cluster]
+//  ─────────────────────        ───────────────────         ─────────────
+//  Developer pushes code   →    Jenkins clones this    →   ArgoCD detects
+//  GitHub webhook fires         Updates image tag            change in Git
+//  Jenkins builds image         Commits & pushes        →   Deploys new pods
+//  Jenkins pushes to ACR   →    to gitops-repo
+//
+// KEY DIFFERENCE FROM SINGLE-REPO:
+//   Jenkins does NOT update deployment.yaml in this repo (user-service repo).
+//   It clones a SEPARATE repo (gitops-repo) and updates deployment.yaml THERE.
+//   That way app code and K8s manifests stay completely separate.
+
+pipeline {
+
+    agent any
+
+    environment {
+        // ── Service identity ────────────────────────────────────────────────
+        SERVICE_NAME = 'user-service'
+
+        // ── ACR (Azure Container Registry) ─────────────────────────────────
+        // Where Docker images are stored after being built
+        ACR_NAME     = 'microservicesacr'
+        ACR_REGISTRY = "${ACR_NAME}.azurecr.io"
+        IMAGE_NAME   = "${ACR_REGISTRY}/${SERVICE_NAME}"
+        IMAGE_TAG    = "${BUILD_NUMBER}"         // unique tag per build: 1, 2, 3...
+        FULL_IMAGE   = "${IMAGE_NAME}:${IMAGE_TAG}"
+
+        // ── GitOps Repo ─────────────────────────────────────────────────────
+        // SEPARATE repository that holds all K8s manifests.
+        // Jenkins will CLONE this repo, update the image tag, and push back.
+        // ArgoCD watches THIS repo — not the user-service repo.
+        GITOPS_REPO_URL  = 'https://github.com/company/gitops-repo.git'
+
+        // Jenkins updates values.yaml (image tag only) — NOT deployment.yaml directly
+        // values.yaml: image.tag: "41"  →  "42"
+        // deployment.yaml reads the tag from values.yaml — it never changes
+        GITOPS_VALUES_FILE = 'user-service/values.yaml'
+
+        // Jenkins credentials IDs (set up in Jenkins → Manage Credentials)
+        GIT_CRED_ID  = 'github-credentials'   // GitHub token to push to gitops-repo
+        ACR_CRED_ID  = 'acr-credentials'      // ACR username + password
+    }
+
+    stages {
+
+        // ── STAGE 1: CHECKOUT ───────────────────────────────────────────────
+        // Checkout user-service source code from THIS repo (not gitops-repo)
+        stage('Checkout') {
+            steps {
+                checkout scm
+                sh 'echo "Building commit: $(git rev-parse --short HEAD)"'
+                sh 'echo "Branch: $(git branch --show-current)"'
+            }
+        }
+
+        // ── STAGE 2: TEST ───────────────────────────────────────────────────
+        stage('Test') {
+            steps {
+                sh 'npm install'
+                sh 'npm test'
+            }
+        }
+
+        // ── STAGE 3: DOCKER BUILD ───────────────────────────────────────────
+        // Build the Docker image from user-service/Dockerfile
+        stage('Docker Build') {
+            steps {
+                sh "docker build -t ${FULL_IMAGE} ."
+                sh "docker images | grep ${SERVICE_NAME}"
+            }
+        }
+
+        // ── STAGE 4: TRIVY SCAN ─────────────────────────────────────────────
+        // Scan the image for security vulnerabilities BEFORE pushing to ACR.
+        // If CRITICAL vulnerabilities found → pipeline fails → image not pushed → not deployed.
+        stage('Trivy Scan') {
+            steps {
+                sh """
+                    trivy image --exit-code 1 --severity CRITICAL,HIGH --no-progress ${FULL_IMAGE}
+                """
+            }
+        }
+
+        // ── STAGE 5: PUSH TO ACR ────────────────────────────────────────────
+        // Upload the verified Docker image to Azure Container Registry.
+        // AKS is authorized to pull from ACR (set during cluster creation with --attach-acr).
+        stage('Push to ACR') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: "${ACR_CRED_ID}",
+                    usernameVariable: 'ACR_USER',
+                    passwordVariable: 'ACR_PASS'
+                )]) {
+                    sh """
+                        echo ${ACR_PASS} | docker login ${ACR_REGISTRY} -u ${ACR_USER} --password-stdin
+                        docker push ${FULL_IMAGE}
+                        docker logout ${ACR_REGISTRY}
+                    """
+                }
+            }
+        }
+
+        // ── STAGE 6: UPDATE GITOPS REPO ─────────────────────────────────────
+        // This is the KEY step in GitOps.
+        // Jenkins clones the SEPARATE gitops-repo, updates the image tag in
+        // user-service/deployment.yaml, commits, and pushes back.
+        // ArgoCD is watching gitops-repo — it detects this commit and deploys.
+        //
+        // WHY CLONE A SEPARATE REPO HERE?
+        //   The K8s manifests (deployment.yaml, service.yaml) are NOT in this repo.
+        //   They live in gitops-repo. Keeping them separate means:
+        //   - App developers can't directly modify what's deployed in production
+        //   - All deployments have a clear audit trail in gitops-repo
+        //   - ArgoCD only needs to watch one repo (gitops-repo), not every app repo
+        stage('Update GitOps Repo') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: "${GIT_CRED_ID}",
+                    usernameVariable: 'GIT_USER',
+                    passwordVariable: 'GIT_PASS'
+                )]) {
+                    sh """
+                        # Clone the SEPARATE gitops-repo
+                        git clone https://${GIT_USER}:${GIT_PASS}@${GITOPS_REPO_URL.replace('https://', '')} gitops-temp
+                        cd gitops-temp
+
+                        # Update ONLY image.tag in values.yaml.
+                        # Jenkins touches NOTHING else — not deployment.yaml, not service.yaml.
+                        # Helm reads values.yaml and fills {{ .Values.image.tag }} in templates/.
+                        # ArgoCD renders the final YAML and applies it to the cluster.
+                        sed -i 's|tag: ".*"|tag: "${IMAGE_TAG}"|g' ${GITOPS_VALUES_FILE}
+
+                        echo "Updated tag in values.yaml:"
+                        grep "tag:" ${GITOPS_VALUES_FILE}
+
+                        git config user.email "jenkins@company.com"
+                        git config user.name "Jenkins CI"
+                        git add ${GITOPS_VALUES_FILE}
+                        git commit -m "ci(user-service): update image tag to ${IMAGE_TAG} [build #${BUILD_NUMBER}]"
+                        git push origin main
+
+                        cd ..
+                        rm -rf gitops-temp
+                    """
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "✅ user-service build ${BUILD_NUMBER} succeeded. Image: ${FULL_IMAGE}"
+            echo "ArgoCD will deploy this to AKS within 3 minutes."
+        }
+        failure {
+            echo "❌ user-service build ${BUILD_NUMBER} failed. No changes deployed to AKS."
+        }
+        always {
+            // Clean up Docker image from the agent to save disk space
+            sh "docker rmi ${FULL_IMAGE} || true"
+        }
+    }
+}

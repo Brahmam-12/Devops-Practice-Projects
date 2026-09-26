@@ -1,0 +1,11 @@
+# ─── NAMESPACE ───────────────────────────────────────────────────────────────
+# A Namespace is like a folder inside Kubernetes.
+# It keeps our microservices isolated from other apps running in the same cluster.
+# Without this, everything would go into the "default" namespace which gets messy.
+
+apiVersion: v1         # which version of the Kubernetes API to use — v1 is the core API group
+kind: Namespace        # we are creating a Namespace resource
+metadata:              # metadata = information ABOUT this resource (not the resource content itself)
+  name: microservices  # the name of our namespace — we will use this name in every other file
+  labels:              # labels = key-value pairs attached to the resource for identification
+    name: microservices # label so other tools (like Helm, monitoring) can find this namespace

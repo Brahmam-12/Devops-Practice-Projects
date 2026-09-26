@@ -1,0 +1,62 @@
+# ─── ResourceQuota ────────────────────────────────────────────────────────────
+# ResourceQuota sets a hard ceiling on total resources the namespace can consume.
+# Prevents one namespace from starving all other workloads on the cluster.
+#
+# HOW TO SIZE:
+#   Current baseline: 4 pods × 100m CPU request = 400m, 4 pods × 128Mi = 512Mi
+#   With HPA max (10+10 pods): 20 × 100m = 2000m CPU, 20 × 128Mi = 2560Mi memory
+#   We set quota above HPA max to give headroom, below full cluster capacity.
+#
+# WHAT HAPPENS WHEN QUOTA IS HIT?
+#   New pods/deployments are REJECTED (pending, not running).
+#   Existing running pods are NOT evicted.
+#   ArgoCD sync will show an error — good early warning before cluster is starved.
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: microservices-quota
+  namespace: microservices
+spec:
+  hard:
+    # Compute
+    requests.cpu: "3"          # total CPU requests across all pods in namespace
+    requests.memory: "4Gi"     # total memory requests across all pods
+    limits.cpu: "8"            # total CPU limits across all pods
+    limits.memory: "8Gi"       # total memory limits across all pods
+
+    # Object counts — prevent runaway pod/service creation
+    pods: "50"
+    services: "20"
+    secrets: "20"
+    configmaps: "20"
+    persistentvolumeclaims: "10"
+---
+# ─── LimitRange ───────────────────────────────────────────────────────────────
+# LimitRange sets DEFAULT requests/limits for containers that do NOT specify them.
+# Also enforces min/max bounds — any container outside these bounds is rejected.
+#
+# WHY THIS MATTERS:
+#   Without requests set → Kubernetes cannot schedule the pod correctly.
+#   Without limits set   → a runaway pod can consume all node resources.
+#   LimitRange ensures every container has sane values, even if the dev forgot them.
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: microservices-limits
+  namespace: microservices
+spec:
+  limits:
+    - type: Container
+      default:              # applied when container has NO limits specified
+        cpu: "300m"
+        memory: "256Mi"
+      defaultRequest:       # applied when container has NO requests specified
+        cpu: "100m"
+        memory: "128Mi"
+      max:                  # hard ceiling — any container exceeding this is REJECTED
+        cpu: "2"
+        memory: "1Gi"
+      min:                  # floor — any container below this is REJECTED
+        cpu: "50m"
+        memory: "64Mi"

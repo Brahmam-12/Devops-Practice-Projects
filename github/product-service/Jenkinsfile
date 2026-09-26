@@ -1,0 +1,100 @@
+// ─── product-service CI PIPELINE ──────────────────────────────────────────────
+// Identical structure to user-service/Jenkinsfile — only SERVICE_NAME differs.
+// Each service repo has its own Jenkinsfile so:
+//   - product-service pipeline runs ONLY when product-service code changes
+//   - user-service pipeline runs ONLY when user-service code changes
+//   - They are completely independent — one failing doesn't block the other
+
+pipeline {
+
+    agent any
+
+    environment {
+        SERVICE_NAME     = 'product-service'        // ← only this line differs
+        ACR_NAME         = 'microservicesacr'
+        ACR_REGISTRY     = "${ACR_NAME}.azurecr.io"
+        IMAGE_NAME       = "${ACR_REGISTRY}/${SERVICE_NAME}"
+        IMAGE_TAG        = "${BUILD_NUMBER}"
+        FULL_IMAGE       = "${IMAGE_NAME}:${IMAGE_TAG}"
+        GITOPS_REPO_URL  = 'https://github.com/company/gitops-repo.git'
+        GITOPS_DEPLOY_FILE = 'product-service/deployment.yaml'
+        GIT_CRED_ID      = 'github-credentials'
+        ACR_CRED_ID      = 'acr-credentials'
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                checkout scm
+                sh 'echo "Building: $(git rev-parse --short HEAD)"'
+            }
+        }
+
+        stage('Test') {
+            steps {
+                sh 'npm install'
+                sh 'npm test'
+            }
+        }
+
+        stage('Docker Build') {
+            steps {
+                sh "docker build -t ${FULL_IMAGE} ."
+            }
+        }
+
+        stage('Trivy Scan') {
+            steps {
+                sh "trivy image --exit-code 1 --severity CRITICAL,HIGH --no-progress ${FULL_IMAGE}"
+            }
+        }
+
+        stage('Push to ACR') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: "${ACR_CRED_ID}",
+                    usernameVariable: 'ACR_USER',
+                    passwordVariable: 'ACR_PASS'
+                )]) {
+                    sh """
+                        echo ${ACR_PASS} | docker login ${ACR_REGISTRY} -u ${ACR_USER} --password-stdin
+                        docker push ${FULL_IMAGE}
+                        docker logout ${ACR_REGISTRY}
+                    """
+                }
+            }
+        }
+
+        // Clone gitops-repo, update product-service/deployment.yaml, push back
+        stage('Update GitOps Repo') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: "${GIT_CRED_ID}",
+                    usernameVariable: 'GIT_USER',
+                    passwordVariable: 'GIT_PASS'
+                )]) {
+                    sh """
+                        git clone https://${GIT_USER}:${GIT_PASS}@${GITOPS_REPO_URL.replace('https://', '')} gitops-temp
+                        cd gitops-temp
+                        sed -i 's|image: ${IMAGE_NAME}:.*|image: ${FULL_IMAGE}|g' ${GITOPS_DEPLOY_FILE}
+                        grep "image:" ${GITOPS_DEPLOY_FILE}
+                        git config user.email "jenkins@company.com"
+                        git config user.name "Jenkins CI"
+                        git add ${GITOPS_DEPLOY_FILE}
+                        git commit -m "ci(product-service): update image to ${IMAGE_TAG} [build #${BUILD_NUMBER}]"
+                        git push origin main
+                        cd ..
+                        rm -rf gitops-temp
+                    """
+                }
+            }
+        }
+    }
+
+    post {
+        success { echo "✅ product-service:${IMAGE_TAG} deployed via ArgoCD" }
+        failure { echo "❌ product-service build failed — AKS unchanged" }
+        always  { sh "docker rmi ${FULL_IMAGE} || true" }
+    }
+}

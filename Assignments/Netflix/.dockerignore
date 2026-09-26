@@ -1,0 +1,29 @@
+# Everything listed here is excluded from the build context.
+# Without this file Docker uploads ~500 MB of Terraform provider binaries and
+# Visual Studio caches to the daemon on every build.
+
+# Terraform — provider .exe files are hundreds of MB, and tfstate holds secrets
+terraform/
+manualTerraformFiles/
+**/.terraform/
+**/*.tfstate
+**/*.tfstate.backup
+**/*.tfvars
+
+# .NET build output — the image builds from source, never from local artifacts.
+# Leaving these in would also let a stale local build leak into the image.
+**/bin/
+**/obj/
+
+# IDE / VCS
+.vs/
+.git/
+.gitignore
+**/*.user
+**/*.suo
+
+# CI and container files themselves
+azure-pipeline.yml
+Dockerfile
+.dockerignore
+README.md

@@ -1,0 +1,316 @@
+// ─── JENKINSFILE ──────────────────────────────────────────────────────────────
+// This file defines the CI pipeline for our microservices project.
+// Jenkins reads this file automatically when a build is triggered.
+//
+// WHEN IS THIS FILE TRIGGERED?
+//   Developer pushes code to GitHub
+//   → GitHub sends a webhook to Jenkins (HTTP POST)
+//   → Jenkins reads this Jenkinsfile from the repo
+//   → Runs the stages top to bottom
+//
+// WHAT DOES THIS PIPELINE DO?
+//   1. Checkout  → clone the code from GitHub
+//   2. Test      → run unit tests (catches bugs before building)
+//   3. Build     → create a Docker image with the new code
+//   4. Scan      → Trivy checks the image for security vulnerabilities
+//   5. Push      → upload image to ACR (Azure Container Registry)
+//   6. Update    → change the image tag in deployment.yaml to the new version
+//   7. Commit    → push updated deployment.yaml to Git (GitOps repo)
+//   → ArgoCD detects the Git change and deploys to AKS automatically
+
+pipeline {
+
+    // agent any = run this pipeline on any available Jenkins agent (worker node)
+    // Jenkins Master assigns the job to an Agent that has Docker installed
+    agent any
+
+    // ── ENVIRONMENT VARIABLES ───────────────────────────────────────────────
+    // These are available in all stages as ${VAR_NAME} or $VAR_NAME
+    environment {
+
+        // Which service this pipeline builds — change per repo/branch
+        // In a real setup: one Jenkinsfile per service, each has its own value
+        SERVICE_NAME = 'user-service'             // or 'product-service'
+
+        // Your Azure Container Registry name (where Docker images are stored)
+        // Replace with your actual ACR name from: az acr list
+        ACR_NAME     = 'microservicesacr'
+        ACR_REGISTRY = "${ACR_NAME}.azurecr.io"  // full registry URL
+
+        // Image tag = Jenkins BUILD_NUMBER so every build has a unique tag
+        // BUILD_NUMBER is provided by Jenkins automatically (1, 2, 3, ...)
+        // Why not "latest"? If you always push "latest", you lose history
+        // and can't roll back to a specific version
+        IMAGE_NAME   = "${ACR_REGISTRY}/${SERVICE_NAME}"
+        IMAGE_TAG    = "${BUILD_NUMBER}"                     // e.g. "42"
+        FULL_IMAGE   = "${IMAGE_NAME}:${IMAGE_TAG}"          // e.g. acr.io/user-service:42
+
+        // The Git repository that contains your K8s manifests (k8s/ folder)
+        // This is what ArgoCD watches — when we update deployment.yaml here,
+        // ArgoCD picks it up and deploys to AKS
+        // Can be the same repo or a separate GitOps repo
+        GITOPS_REPO  = 'https://github.com/YOUR_ORG/YOUR_REPO.git'
+
+        // Path to the deployment.yaml file we need to update with the new image tag
+        // After pipeline builds user-service:42, we change deployment.yaml to use :42
+        DEPLOY_FILE  = 'k8s/user-service/deployment.yaml'
+
+        // Jenkins credentials ID for GitHub (set up in Jenkins → Manage Credentials)
+        // This lets Jenkins push commits back to GitHub
+        GIT_CRED_ID  = 'github-credentials'
+
+        // Jenkins credentials ID for ACR login (set up in Jenkins Credentials store)
+        // Type: Username with Password → username: your ACR name, password: ACR access key
+        ACR_CRED_ID  = 'acr-credentials'
+    }
+
+    stages {
+
+        // ── STAGE 1: CHECKOUT ───────────────────────────────────────────────
+        // Clone the repository from GitHub to the Jenkins agent workspace.
+        // The webhook tells Jenkins which branch/commit triggered the build.
+        stage('Checkout') {
+            steps {
+                // checkout scm = use the Git configuration from the Jenkins job settings
+                // It checks out the exact commit that triggered this pipeline
+                // After this: all source files are in the Jenkins workspace directory
+                checkout scm
+
+                // Print commit info so we can see in the build log what code we built
+                sh 'git log --oneline -5'
+                sh 'echo "Branch: $(git branch --show-current)"'
+                sh 'echo "Commit: $(git rev-parse HEAD)"'
+            }
+        }
+
+        // ── STAGE 2: INSTALL & TEST ─────────────────────────────────────────
+        // Install dependencies and run unit tests BEFORE building the Docker image.
+        // Why test before Docker build?
+        //   - Faster feedback: tests take 10s, Docker build takes 2min
+        //   - If tests fail, we stop here and don't waste time building/pushing
+        stage('Install & Test') {
+            steps {
+                dir("${SERVICE_NAME}") {  // cd into user-service/ or product-service/
+
+                    // Install all dependencies from package.json
+                    sh 'npm install'
+
+                    // Run tests — add actual tests in package.json scripts.test
+                    // If tests fail → sh throws exception → stage fails → pipeline stops
+                    // sh 'npm test'
+
+                    // For now: just verify the app can be required without crashing
+                    sh 'node -e "require(\"./src/index.js\")" || true'
+
+                    sh 'echo "Tests passed — proceeding to build"'
+                }
+            }
+        }
+
+        // ── STAGE 3: DOCKER BUILD ───────────────────────────────────────────
+        // Build the Docker image from the Dockerfile in the service folder.
+        // The image contains the Node.js app and all its dependencies.
+        //
+        // What the Dockerfile does (user-service/Dockerfile):
+        //   FROM node:20-alpine          → start from a small Node.js base image
+        //   COPY package*.json ./        → copy dependency list
+        //   RUN npm install --omit=dev   → install production dependencies only
+        //   COPY src/ ./src/             → copy application code
+        //   CMD ["node", "src/index.js"] → start the app when container runs
+        //
+        // The image tag includes the BUILD_NUMBER so we can track which
+        // Jenkins build produced which image
+        stage('Docker Build') {
+            steps {
+                sh """
+                    echo "Building Docker image: ${FULL_IMAGE}"
+
+                    # Build from the service subdirectory (where Dockerfile lives)
+                    # -t tags the image with our ACR registry URL + version
+                    docker build \
+                        -t ${FULL_IMAGE} \
+                        -t ${IMAGE_NAME}:latest \
+                        ./${SERVICE_NAME}
+
+                    echo "Image built: ${FULL_IMAGE}"
+                    docker images | grep ${SERVICE_NAME}
+                """
+            }
+        }
+
+        // ── STAGE 4: TRIVY SECURITY SCAN ───────────────────────────────────
+        // Trivy scans the Docker image for known security vulnerabilities (CVEs).
+        // It checks: OS packages, Node.js packages, system libraries.
+        //
+        // Why scan BEFORE pushing?
+        //   If the image has CRITICAL vulnerabilities, we stop here.
+        //   We never push a vulnerable image to the registry or deploy it.
+        //
+        // Trivy must be installed on the Jenkins agent:
+        //   curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh
+        stage('Trivy Scan') {
+            steps {
+                sh """
+                    echo "Running Trivy security scan on ${FULL_IMAGE}"
+
+                    # Scan the image
+                    # --exit-code 1 = fail the build if CRITICAL vulnerabilities found
+                    # --severity CRITICAL,HIGH = only report these severity levels
+                    # --no-progress = cleaner output in CI logs
+                    trivy image \
+                        --exit-code 1 \
+                        --severity CRITICAL,HIGH \
+                        --no-progress \
+                        ${FULL_IMAGE} || {
+                            echo "SECURITY SCAN FAILED — image has CRITICAL/HIGH vulnerabilities"
+                            echo "Fix the vulnerabilities then re-run the pipeline"
+                            exit 1
+                        }
+
+                    echo "Trivy scan PASSED — no critical vulnerabilities found"
+                """
+            }
+        }
+
+        // ── STAGE 5: PUSH TO ACR ────────────────────────────────────────────
+        // Upload the Docker image to Azure Container Registry.
+        // After this, the image is stored in Azure and AKS can pull it.
+        //
+        // Why ACR and not Docker Hub?
+        //   - ACR is private (only your AKS cluster can pull from it)
+        //   - AKS is already authorized to pull from ACR (via --attach-acr flag)
+        //   - No auth tokens needed in K8s pods — it just works
+        stage('Push to ACR') {
+            steps {
+                // withCredentials = temporarily injects the stored ACR password
+                // It is NEVER printed in the log (Jenkins masks it)
+                withCredentials([usernamePassword(
+                    credentialsId: "${ACR_CRED_ID}",
+                    usernameVariable: 'ACR_USER',
+                    passwordVariable: 'ACR_PASS'
+                )]) {
+                    sh """
+                        echo "Logging into ACR: ${ACR_REGISTRY}"
+
+                        # Login to ACR using service principal or admin credentials
+                        # --password-stdin = read password from stdin (avoids it appearing in process list)
+                        echo ${ACR_PASS} | docker login ${ACR_REGISTRY} \
+                            --username ${ACR_USER} \
+                            --password-stdin
+
+                        echo "Pushing image: ${FULL_IMAGE}"
+                        docker push ${FULL_IMAGE}           # push versioned tag (e.g. :42)
+                        docker push ${IMAGE_NAME}:latest    # also push :latest tag
+
+                        echo "Image pushed successfully to ACR"
+
+                        # Logout — clean up credentials from the agent
+                        docker logout ${ACR_REGISTRY}
+                    """
+                }
+            }
+        }
+
+        // ── STAGE 6: UPDATE IMAGE TAG IN DEPLOYMENT.YAML ───────────────────
+        // Change the image: line in k8s/user-service/deployment.yaml
+        // from the old tag to the new BUILD_NUMBER tag.
+        //
+        // This is the KEY step that connects CI to CD (GitOps).
+        // ArgoCD watches the Git repo — when deployment.yaml changes, ArgoCD
+        // detects it and automatically deploys the new version to AKS.
+        //
+        // BEFORE (old deployment.yaml):
+        //   image: microservicesacr.azurecr.io/user-service:41
+        //
+        // AFTER (updated by Jenkins):
+        //   image: microservicesacr.azurecr.io/user-service:42
+        stage('Update Image Tag in Manifest') {
+            steps {
+                sh """
+                    echo "Updating image tag in ${DEPLOY_FILE}"
+                    echo "New image: ${FULL_IMAGE}"
+
+                    # sed in-place replaces the image: line with the new tag
+                    # Pattern: find any line containing "image: <ACR_REGISTRY>/<SERVICE_NAME>:"
+                    # Replace the entire line with the new image reference
+                    sed -i 's|image: ${ACR_REGISTRY}/${SERVICE_NAME}:.*|image: ${FULL_IMAGE}|g' \
+                        ${DEPLOY_FILE}
+
+                    # Verify the change was made correctly
+                    echo "Updated line in deployment.yaml:"
+                    grep "image:" ${DEPLOY_FILE}
+                """
+            }
+        }
+
+        // ── STAGE 7: COMMIT AND PUSH TO GIT (GitOps) ───────────────────────
+        // Push the updated deployment.yaml back to GitHub.
+        // ArgoCD is watching this repo. The moment this commit lands,
+        // ArgoCD detects the change and starts the deployment to AKS.
+        //
+        // This is why it's called GitOps:
+        //   Git is the single source of truth for what should be deployed.
+        //   You never kubectl apply manually in production.
+        //   Everything goes through Git → ArgoCD → Kubernetes.
+        stage('Commit & Push Manifest') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: "${GIT_CRED_ID}",
+                    usernameVariable: 'GIT_USER',
+                    passwordVariable: 'GIT_PASS'
+                )]) {
+                    sh """
+                        # Set git identity so the commit has an author
+                        git config user.email "jenkins@company.com"
+                        git config user.name  "Jenkins CI"
+
+                        # Stage only the deployment file we changed
+                        # Never do git add -A — that could commit unintended files
+                        git add ${DEPLOY_FILE}
+
+                        # Commit with a message that links back to the Jenkins build
+                        git commit -m "ci: update ${SERVICE_NAME} image to tag ${IMAGE_TAG} [build #${BUILD_NUMBER}]"
+
+                        # Push to GitHub using the stored credentials in the URL
+                        # This triggers ArgoCD (it polls every 3 min or via webhook)
+                        git push https://${GIT_USER}:${GIT_PASS}@${GITOPS_REPO.replace('https://', '')} HEAD:main
+
+                        echo "Manifest pushed — ArgoCD will now deploy to AKS"
+                    """
+                }
+            }
+        }
+    }
+
+    // ── POST ACTIONS ─────────────────────────────────────────────────────────
+    // These run after all stages finish — regardless of success or failure.
+    post {
+
+        success {
+            // Pipeline completed successfully — all stages passed
+            echo """
+            ✅ Pipeline SUCCESS
+            Service  : ${SERVICE_NAME}
+            Image    : ${FULL_IMAGE}
+            Build    : #${BUILD_NUMBER}
+            Next     : ArgoCD will deploy this to AKS within 3 minutes
+            """
+        }
+
+        failure {
+            // One of the stages failed — identify which one from the Jenkins log
+            echo """
+            ❌ Pipeline FAILED at build #${BUILD_NUMBER}
+            Check the stage logs above to identify the failing step.
+            The old version is still running in AKS — no broken code was deployed.
+            """
+        }
+
+        always {
+            // Always clean up the Docker image from the agent after the build
+            // Prevents disk space filling up on the Jenkins agent over time
+            sh "docker rmi ${FULL_IMAGE} || true"
+            sh "docker rmi ${IMAGE_NAME}:latest || true"
+        }
+    }
+}

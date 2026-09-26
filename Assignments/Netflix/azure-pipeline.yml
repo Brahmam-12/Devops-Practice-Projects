@@ -1,0 +1,247 @@
+trigger:
+  branches:
+    include:
+      - main
+
+variables:
+  solution: '**/*.slnx'
+
+stages:
+  - stage: Docker
+    displayName: Docker stage
+    jobs:
+      - job: buildAndPush
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - task: Docker@2
+            inputs:
+              command: buildAndPush
+              repository: netflix-image
+              Dockerfile: '**/Dockerfile'
+              buildContext: $(Build.SourcesDirectory)
+          
+
+  # - stage: Build
+  #   displayName: BuildStage
+  #   jobs:
+  #     - job: BuildJob
+  #       displayName: BuildingJob
+  #       pool:
+  #         vmImage: ubuntu-latest
+        
+  #       steps:
+  #         - task: DotNetCoreCLI@2
+  #           inputs:
+  #             command: publish
+  #             projects: $(solution)
+  #             arguments: '--configuration Release --output $(Build.ArtifactStagingDirectory)'
+          
+  #         - task: PublishBuildArtifacts@1
+  #           inputs:
+  #             PathtoPublish: $(Build.ArtifactStagingDirectory)
+  #             ArtifactName: drop
+  #             PublishLocation: Container
+
+
+
+  # - stage: TerraformDevInfra
+  #   displayName: Creating Dev Infra
+  #   dependsOn: Build
+  #   jobs:
+  #     - deployment: DevInfra
+  #       environment: DevEnv
+  #       displayName: Runing dev infra job
+  #       pool:
+  #         vmImage: ubuntu-latest
+        
+  #       strategy:
+  #         runOnce:
+  #           deploy:
+  #             steps:
+  #               - checkout: self
+  #               - task: TerraformInstaller@1
+  #                 inputs:
+  #                   terraformVersion: latest
+                
+  #               - task: AzureCLI@2
+  #                 inputs:
+  #                   connectionType: AzureRM
+  #                   azureSubscription: Netflix-Service-Connection
+  #                   scriptType: bash
+  #                   scriptLocation: inlineScript
+  #                   inlineScript: |
+  #                       cd $(Build.SourcesDirectory)/Netflix/terraform
+  #                       terraform init --reconfigure --backend-config="backend-dev.conf"
+
+  #               - task: AzureCLI@2
+  #                 inputs:
+  #                   connectionType: AzureRM
+  #                   azureSubscription: Netflix-Service-Connection
+  #                   scriptType: bash
+  #                   scriptLocation: inlineScript
+  #                   inlineScript: |
+  #                       cd $(Build.SourcesDirectory)/Netflix/terraform
+  #                       terraform apply -var-file="dev.tfvars" --auto-approve
+
+  # - stage: DeployIndDev
+  #   displayName: Running deployment stage
+  #   dependsOn: TerraformDevInfra
+
+  #   jobs:
+  #     - deployment: DevJob
+  #       environment: DevEnv
+  #       displayName: Dev environment
+  #       pool:
+  #         vmImage: ubuntu-latest
+
+  #       strategy:
+  #         runOnce:
+  #           deploy:
+  #             steps:
+  #               - download: current
+  #                 artifact: drop
+
+  #               - task: AzureRmWebAppDeployment@5
+  #                 inputs:
+  #                   connectionType: AzureRM
+  #                   azureSubscription: Netflix-Service-Connection
+  #                   appType: webApp
+  #                   WebAppName: netflix-app-dev
+  #                   packageForLinux: '$(Pipeline.Workspace)/drop/**/*.zip'
+
+  
+
+  # - stage: TerraformQaInfra
+  #   displayName: Creating QA Infra
+  #   dependsOn: DeployIndDev
+  #   jobs:
+  #     - deployment: QaInfra
+  #       environment: QAEnv
+  #       displayName: Running QA Infra Job
+  #       pool:
+  #         vmImage: ubuntu-latest
+
+  #       strategy:
+  #         runOnce:
+  #           deploy:
+  #             steps:
+  #               - checkout: self
+  #               - task: TerraformInstaller@1
+  #                 inputs:
+  #                   terraformVersion: latest
+                
+  #               - task: AzureCLI@2
+  #                 inputs:
+  #                   connectionType: AzureRM
+  #                   azureSubscription: Netflix-Service-Connection
+  #                   scriptType: bash
+  #                   scriptLocation: inlineScript
+  #                   inlineScript: |
+  #                     cd $(Build.SourcesDirectory)/Netflix/terraform
+  #                     terraform init --reconfigure --backend-config="backend-qa.conf"
+                
+  #               - task: AzureCLI@2
+  #                 inputs:
+  #                   connectionType: AzureRM
+  #                   azureSubscription: Netflix-Service-Connection
+  #                   scriptType: bash
+  #                   scriptLocation: inlineScript
+  #                   inlineScript: |
+  #                     cd $(Build.SourcesDirectory)/Netflix/terraform
+  #                     terraform apply -var-file="qa.tfvars" --auto-approve
+
+  # - stage: DeployInQA
+  #   displayName: Running QA Stage
+  #   dependsOn: TerraformQaInfra
+    
+  #   jobs:
+  #     - deployment: DeployQA
+  #       environment: QAEnv
+  #       displayName: QA Environment
+  #       pool:
+  #         vmImage: ubuntu-latest
+        
+  #       strategy:
+  #         runOnce:
+  #           deploy:
+  #             steps:
+  #               - download: current
+  #                 artifact: drop
+
+  #               - task: AzureRmWebAppDeployment@5
+  #                 inputs:
+  #                   azureSubscription: Netflix-Service-Connection
+  #                   connectionType: AzureRM
+  #                   appType: webApp
+  #                   WebAppName: netflix-app-qa
+  #                   packageForLinux: '$(Pipeline.Workspace)/drop/**/*.zip'
+
+
+
+  # - stage: TerraformProdInfra
+  #   displayName: ProdInfra
+  #   dependsOn: DeployInQA
+  #   jobs:
+  #     - deployment: ProdJob
+  #       environment: ProdEnv
+  #       displayName: Running Prod Job
+
+  #       pool:
+  #         vmImage: ubuntu-latest
+
+  #       strategy:
+  #         runOnce:
+  #           deploy:
+  #             steps:
+  #               - checkout: self
+  #               - task: TerraformInstaller@1
+  #                 inputs:
+  #                   terraformVersion: latest
+                
+                # - task: AzureCLI@2
+                #   inputs:
+                #     connectionType: AzureRM
+                #     azureSubscription: Netflix-Service-Connection
+                #     scriptType: bash
+                #     scriptLocation: inlineScript
+                #     inlineScript: |
+                #       cd $(Build.SourcesDirectory)/Netflix/terraform
+                #       terraform init --reconfigure --backend-config="backend-prod.conf"
+
+  #               - task: AzureCLI@2
+  #                 inputs:
+  #                   connectionType: AzureRM
+  #                   azureSubscription: Netflix-Service-Connection
+  #                   scriptType: bash
+  #                   scriptLocation: inlineScript
+  #                   inlineScript: |
+  #                     cd $(Build.SourcesDirectory)/Netflix/terraform
+  #                     terraform apply -var-file="prod.tfvars" --auto-approve
+
+  # - stage: DeployInprod
+  #   displayName: Running Prod Stage
+  #   dependsOn: TerraformProdInfra
+    
+  #   jobs:
+  #     - deployment: DeployProd
+  #       environment: ProdEnv
+  #       displayName: Prod Environment
+  #       pool:
+  #         vmImage: ubuntu-latest
+        
+  #       strategy:
+  #         runOnce:
+  #           deploy:
+  #             steps:
+  #               - download: current
+  #                 artifact: drop
+
+  #               - task: AzureRmWebAppDeployment@5
+  #                 inputs:
+  #                   azureSubscription: Netflix-Service-Connection
+  #                   connectionType: AzureRM
+  #                   appType: webApp
+  #                   WebAppName: netflix-app-prod
+  #                   packageForLinux: '$(Pipeline.Workspace)/drop/**/*.zip'
+                    

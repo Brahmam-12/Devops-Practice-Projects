@@ -1,0 +1,127 @@
+name: Pipeline for Infra and deploy
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+
+  Build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Dotnet
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: latest
+
+
+      - name: checkout code
+        uses: actions/checkout@v6
+
+      
+      - name: Make Publish
+        run: dotnet publish --configuration Release  --output ./publish --no-build
+      
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: drop
+          path: ./publish
+
+  DevInfra:
+    needs: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v2
+      
+      - name: terraform install
+        uses: hashicorp/setup-terraform@v1
+        with:
+          terraform-version: latest
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          cred: ${{secrets.AZURE_CREDENTIALS}}
+      
+      - name: terraform init and apply
+        run: |
+          cd terraform
+          terraform init --backend-config="backend-dev.conf" 
+          terraform apply -var-file="dev.tfvars" --auto-approve
+        
+  DevDeploy:
+    needs: DevInfra
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Artifact
+        uses: actions/download-artifact@v1
+        with:
+          name: drop
+          path: ./publish
+      
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{secrets.AZURE_CREDENTIALS}}
+
+      - name: test
+        run: |
+          echo "print directory"
+          pwd
+          echo "list files in current directory"
+          ls -la
+          ll
+      
+      - name: Deploy in webapp
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: netflix-dev-web-app
+          package: ./publish
+
+  QAInfra:
+    needs: DevDeploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: terraform install
+        uses: hashicorp/setup-terraform@v1
+        with:
+          terraform-version: latest
+      
+      - name: checkout code
+        uses: actions/checkout@v2
+      
+      - name: azure login
+        uses: azure/login@v3
+        with:
+          creds: ${{secrets.AZURE_CREDENTIALS}}
+
+      - name: terraform init and apply
+        run: |
+          cd $GITHUB_WORKSPACE/terrafrom
+          terraform init --backend-config="backend-qa.conf"
+          terraform apply -var-file="qa.tfvars" --auto-approve
+      
+  QADeploy:
+    needs: QAInfra
+    runs-on: ubuntu-latest
+    steps:
+      - name: download artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: drop
+          path: ./publish
+      
+      - name: azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{sources.AZURE_CREDENTIALS}}
+      
+      - name: Deploy in QA
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: wa-web-app
+          package: ./publish
+
+  
