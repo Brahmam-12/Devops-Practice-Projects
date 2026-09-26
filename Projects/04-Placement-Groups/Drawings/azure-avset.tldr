@@ -1,0 +1,80 @@
+{
+	"tldrawFileFormatVersion": 1,
+	"schema": {
+		"schemaVersion": 2,
+		"sequences": {
+			"com.tldraw.store": 5,
+			"com.tldraw.asset": 1,
+			"com.tldraw.camera": 1,
+			"com.tldraw.document": 2,
+			"com.tldraw.instance": 26,
+			"com.tldraw.instance_page_state": 5,
+			"com.tldraw.page": 1,
+			"com.tldraw.instance_presence": 6,
+			"com.tldraw.pointer": 1,
+			"com.tldraw.shape": 4,
+			"com.tldraw.user": 1,
+			"com.tldraw.asset.image": 6,
+			"com.tldraw.asset.video": 5,
+			"com.tldraw.asset.bookmark": 2,
+			"com.tldraw.shape.group": 0,
+			"com.tldraw.shape.text": 4,
+			"com.tldraw.shape.bookmark": 2,
+			"com.tldraw.shape.draw": 4,
+			"com.tldraw.shape.geo": 11,
+			"com.tldraw.shape.note": 12,
+			"com.tldraw.shape.line": 5,
+			"com.tldraw.shape.frame": 1,
+			"com.tldraw.shape.arrow": 8,
+			"com.tldraw.shape.highlight": 3,
+			"com.tldraw.shape.embed": 4,
+			"com.tldraw.shape.image": 5,
+			"com.tldraw.shape.video": 4,
+			"com.tldraw.binding.arrow": 1
+		}
+	},
+	"records": [
+		{"x":0,"y":0,"lastActivityTimestamp":0,"meta":{},"id":"pointer:pointer","typeName":"pointer"},
+		{"x":-80,"y":-40,"z":0.8,"meta":{},"id":"camera:page:page","typeName":"camera"},
+		{"meta":{},"id":"page:page","name":"Page 1","index":"a1","typeName":"page"},
+		{"gridSize":10,"name":"","meta":{},"id":"document:document","typeName":"document"},
+		{"editingShapeId":null,"croppingShapeId":null,"selectedShapeIds":[],"hoveredShapeId":null,"erasingShapeIds":[],"hintingShapeIds":[],"focusedGroupId":null,"meta":{},"id":"instance_page_state:page:page","pageId":"page:page","typeName":"instance_page_state"},
+		{"followingUserId":null,"opacityForNextShape":1,"stylesForNextShape":{},"brush":null,"scribbles":[],"cursor":{"type":"default","rotation":0},"isFocusMode":false,"exportBackground":true,"isDebugMode":false,"isToolLocked":false,"screenBounds":{"x":0,"y":0,"w":1612,"h":918},"insets":[false,false,true,false],"zoomBrush":null,"isGridMode":false,"isPenMode":false,"chatMessage":"","isChatting":false,"highlightedUserIds":[],"isFocused":true,"devicePixelRatio":1,"isCoarsePointer":false,"isHoveringCanvas":false,"openMenus":[],"isChangingStyle":false,"isReadonly":false,"meta":{},"duplicateProps":null,"cameraState":"idle","id":"instance:instance","currentPageId":"page:page","typeName":"instance"},
+
+		{"x":370,"y":10,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:title","type":"text","props":{"color":"black","size":"xl","w":700,"font":"draw","textAlign":"middle","autoSize":true,"scale":1,"richText":{"type":"doc","attrs":{"dir":"auto"},"content":[{"type":"paragraph","attrs":{"dir":"auto"},"content":[{"type":"text","text":"Azure Availability Sets & Proximity Placement Groups"}]}]}},"parentId":"page:page","index":"a0","typeName":"shape"},
+
+		{"x":50,"y":80,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:avset","type":"geo","props":{"w":600,"h":360,"geo":"rectangle","dash":"draw","growY":0,"url":"","scale":1,"color":"blue","labelColor":"black","fill":"semi","size":"m","font":"draw","align":"middle","verticalAlign":"start","richText":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Availability Set   (FD=3, UD=5)"}]}]}},"parentId":"page:page","index":"a1","typeName":"shape"},
+
+		{"x":65,"y":140,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:fd0","type":"geo","props":{"w":160,"h":230,"geo":"rectangle","dash":"draw","growY":0,"url":"","scale":1,"color":"green","labelColor":"black","fill":"semi","size":"s","font":"draw","align":"middle","verticalAlign":"start","richText":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"FD 0\n(Rack A)"}]}]}},"parentId":"page:page","index":"a2","typeName":"shape"},
+
+		{"x":95,"y":200,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:fd0-vm1","type":"geo","props":{"w":100,"h":50,"geo":"rectangle","dash":"draw","growY":0,"url":"","scale":1,"color":"grey","labelColor":"black","fill":"solid","size":"s","font":"draw","align":"middle","verticalAlign":"middle","richText":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"VM1\nUD:0 FD:0"}]}]}},"parentId":"page:page","index":"a3","typeName":"shape"},
+
+		{"x":95,"y":280,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:fd0-vm4","type":"geo","props":{"w":100,"h":50,"geo":"rectangle","dash":"draw","growY":0,"url":"","scale":1,"color":"grey","labelColor":"black","fill":"solid","size":"s","font":"draw","align":"middle","verticalAlign":"middle","richText":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"VM4\nUD:3 FD:0"}]}]}},"parentId":"page:page","index":"a4","typeName":"shape"},
+
+		{"x":255,"y":140,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:fd1","type":"geo","props":{"w":160,"h":230,"geo":"rectangle","dash":"draw","growY":0,"url":"","scale":1,"color":"orange","labelColor":"black","fill":"semi","size":"s","font":"draw","align":"middle","verticalAlign":"start","richText":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"FD 1\n(Rack B)"}]}]}},"parentId":"page:page","index":"a5","typeName":"shape"},
+
+		{"x":285,"y":200,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:fd1-vm2","type":"geo","props":{"w":100,"h":50,"geo":"rectangle","dash":"draw","growY":0,"url":"","scale":1,"color":"grey","labelColor":"black","fill":"solid","size":"s","font":"draw","align":"middle","verticalAlign":"middle","richText":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"VM2\nUD:1 FD:1"}]}]}},"parentId":"page:page","index":"a6","typeName":"shape"},
+
+		{"x":285,"y":280,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:fd1-vm5","type":"geo","props":{"w":100,"h":50,"geo":"rectangle","dash":"draw","growY":0,"url":"","scale":1,"color":"grey","labelColor":"black","fill":"solid","size":"s","font":"draw","align":"middle","verticalAlign":"middle","richText":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"VM5\nUD:4 FD:1"}]}]}},"parentId":"page:page","index":"a7","typeName":"shape"},
+
+		{"x":445,"y":140,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:fd2","type":"geo","props":{"w":160,"h":230,"geo":"rectangle","dash":"draw","growY":0,"url":"","scale":1,"color":"red","labelColor":"black","fill":"semi","size":"s","font":"draw","align":"middle","verticalAlign":"start","richText":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"FD 2\n(Rack C)"}]}]}},"parentId":"page:page","index":"a8","typeName":"shape"},
+
+		{"x":475,"y":200,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:fd2-vm3","type":"geo","props":{"w":100,"h":50,"geo":"rectangle","dash":"draw","growY":0,"url":"","scale":1,"color":"grey","labelColor":"black","fill":"solid","size":"s","font":"draw","align":"middle","verticalAlign":"middle","richText":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"VM3\nUD:2 FD:2"}]}]}},"parentId":"page:page","index":"a9","typeName":"shape"},
+
+		{"x":55,"y":460,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:avset-note","type":"text","props":{"color":"black","size":"s","w":550,"font":"draw","textAlign":"start","autoSize":true,"scale":1,"richText":{"type":"doc","attrs":{"dir":"auto"},"content":[{"type":"paragraph","attrs":{"dir":"auto"},"content":[{"type":"text","text":"FD (Fault Domain) = physical rack with shared power & switch\nUD (Update Domain) = patched one at a time during maintenance\nMax FDs: 3 in most regions | Max UDs: 20 (default 5)"}]}]}},"parentId":"page:page","index":"a10","typeName":"shape"},
+
+		{"x":720,"y":80,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:ppg","type":"geo","props":{"w":500,"h":290,"geo":"rectangle","dash":"draw","growY":0,"url":"","scale":1,"color":"violet","labelColor":"black","fill":"semi","size":"m","font":"draw","align":"middle","verticalAlign":"start","richText":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Proximity Placement Group (Low Latency)"}]}]}},"parentId":"page:page","index":"a11","typeName":"shape"},
+
+		{"x":740,"y":140,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:dc-box","type":"geo","props":{"w":440,"h":160,"geo":"rectangle","dash":"draw","growY":0,"url":"","scale":1,"color":"grey","labelColor":"black","fill":"semi","size":"s","font":"draw","align":"middle","verticalAlign":"start","richText":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Same Data Center (co-located)"}]}]}},"parentId":"page:page","index":"a12","typeName":"shape"},
+
+		{"x":760,"y":195,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:ppg-vm1","type":"geo","props":{"w":100,"h":50,"geo":"rectangle","dash":"draw","growY":0,"url":"","scale":1,"color":"grey","labelColor":"black","fill":"solid","size":"s","font":"draw","align":"middle","verticalAlign":"middle","richText":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"VM-A"}]}]}},"parentId":"page:page","index":"a13","typeName":"shape"},
+
+		{"x":890,"y":195,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:ppg-vm2","type":"geo","props":{"w":100,"h":50,"geo":"rectangle","dash":"draw","growY":0,"url":"","scale":1,"color":"grey","labelColor":"black","fill":"solid","size":"s","font":"draw","align":"middle","verticalAlign":"middle","richText":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"VM-B"}]}]}},"parentId":"page:page","index":"a14","typeName":"shape"},
+
+		{"x":1020,"y":195,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:ppg-vm3","type":"geo","props":{"w":100,"h":50,"geo":"rectangle","dash":"draw","growY":0,"url":"","scale":1,"color":"grey","labelColor":"black","fill":"solid","size":"s","font":"draw","align":"middle","verticalAlign":"middle","richText":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"VM-C"}]}]}},"parentId":"page:page","index":"a15","typeName":"shape"},
+
+		{"x":725,"y":390,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:ppg-note","type":"text","props":{"color":"black","size":"s","w":450,"font":"draw","textAlign":"start","autoSize":true,"scale":1,"richText":{"type":"doc","attrs":{"dir":"auto"},"content":[{"type":"paragraph","attrs":{"dir":"auto"},"content":[{"type":"text","text":"PPG: VMs in same physical data center\nUse: Low-latency workloads (same as Cluster PG in AWS)\nNote: PPG alone does NOT guarantee HA — combine with Avail. Set"}]}]}},"parentId":"page:page","index":"a16","typeName":"shape"},
+
+		{"x":55,"y":580,"rotation":0,"isLocked":false,"opacity":1,"meta":{},"id":"shape:compare","type":"text","props":{"color":"black","size":"s","w":1150,"font":"draw","textAlign":"start","autoSize":true,"scale":1,"richText":{"type":"doc","attrs":{"dir":"auto"},"content":[{"type":"paragraph","attrs":{"dir":"auto"},"content":[{"type":"text","text":"AWS vs Azure Comparison:"}]},{"type":"paragraph","attrs":{"dir":"auto"},"content":[{"type":"text","text":"Cluster PG  ←→  Proximity Placement Group  (same physical location, low latency)"}]},{"type":"paragraph","attrs":{"dir":"auto"},"content":[{"type":"text","text":"Spread PG   ←→  Availability Set  (separate racks, fault isolation)"}]},{"type":"paragraph","attrs":{"dir":"auto"},"content":[{"type":"text","text":"No direct equivalent  ←→  Availability Zones  (separate data centers, highest HA)"}]}]}},"parentId":"page:page","index":"a17","typeName":"shape"}
+	]
+}
